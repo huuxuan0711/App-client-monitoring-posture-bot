@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "294095670478",
+    "project_id": "app-posture-bot",
+    "storage_bucket": "app-posture-bot.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:294095670478:android:cbeb1ebea8523536e8549f",
+        "android_client_info": {
+          "package_name": "com.xmobile.appclientmonitoringposturebot"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB9Qb8fQ03ankHd7OgoNKnlKRZdTpWSNBc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

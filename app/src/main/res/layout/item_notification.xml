@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="@drawable/bg_retangle_radius"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <View
+        android:id="@+id/indicatorView"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:background="@drawable/bg_retangle_radius"
+        android:backgroundTint="@color/yellow"
+        android:layout_width="20dp"
+        android:layout_height="0dp"/>
+
+    <TextView
+        android:id="@+id/txtTitle"
+        android:text="Cảnh báo tư thế"
+        android:textStyle="bold"
+        android:textSize="24sp"
+        android:textColor="@color/dark_blue"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="10dp"
+        app:layout_constraintStart_toEndOf="@id/indicatorView"
+        app:layout_constraintTop_toTopOf="parent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+
+    <TextView
+        android:id="@+id/txtBody"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="20dp"
+        android:text="Tư thế của bạn đang xấu trong vài phút gần đây. Hãy ngồi thẳng lưng."
+        android:textColor="@color/dark_blue"
+        android:textSize="24sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/indicatorView"
+        app:layout_constraintTop_toBottomOf="@id/txtTime" />
+
+    <TextView
+        android:id="@+id/txtTime"
+        android:text="15:00"
+        android:textSize="22sp"
+        android:alpha="0.7"
+        android:textColor="@color/dark_blue"
+        android:layout_marginStart="20dp"
+        app:layout_constraintStart_toEndOf="@id/indicatorView"
+        app:layout_constraintTop_toBottomOf="@id/txtTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+</androidx.constraintlayout.widget.ConstraintLayout>

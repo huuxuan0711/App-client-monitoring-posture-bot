@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="200dp"
+    android:orientation="vertical"
+    android:background="@drawable/bg_retangle_radius"
+    android:layout_height="wrap_content">
+
+    <TextView
+        android:id="@+id/txtAll"
+        android:text="Tất cả"
+        android:textColor="@color/dark_blue"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:padding="8dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <TextView
+        android:id="@+id/txtMild"
+        android:text="Nhắc nhở"
+        android:textColor="@color/gray"
+        android:textSize="22sp"
+        android:padding="8dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <TextView
+        android:id="@+id/txtModerate"
+        android:text="Cảnh báo"
+        android:textColor="@color/gray"
+        android:textSize="22sp"
+        android:padding="8dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <TextView
+        android:id="@+id/txtSevere"
+        android:text="Xấu"
+        android:textColor="@color/gray"
+        android:textSize="22sp"
+        android:padding="8dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+</LinearLayout>

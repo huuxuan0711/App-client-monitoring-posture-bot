@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="20dp"
+    android:paddingBottom="10dp"
+    android:background="@drawable/bg_retangle_radius"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <ImageView
+        android:id="@+id/img0"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        android:src="@drawable/robot"
+        app:tint="@color/purple"
+        android:layout_marginStart="20dp"
+        android:layout_width="34dp"
+        android:layout_height="34dp"/>
+
+    <TextView
+        android:id="@+id/device_name"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginTop="10dp"
+        android:text="Bot theo dõi tư thế"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="@color/dark_blue"
+        app:layout_constraintStart_toEndOf="@id/img0"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"/>
+
+    <TextView
+        android:id="@+id/bot_status"
+        android:text="Đang hoạt động"
+        android:textSize="20sp"
+        android:textColor="@color/dark_blue"
+        app:layout_constraintStart_toStartOf="@id/device_name"
+        app:layout_constraintTop_toBottomOf="@id/device_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+
+    <ImageView
+        android:src="@drawable/circle"
+        android:layout_marginTop="10dp"
+        android:layout_marginStart="5dp"
+        app:tint="@color/green"
+        app:layout_constraintStart_toEndOf="@id/bot_status"
+        app:layout_constraintTop_toTopOf="@id/bot_status"
+        android:layout_width="12dp"
+        android:layout_height="12dp"/>
+
+    <TextView
+        android:id="@+id/txt4"
+        android:text="Cập nhật gần nhất: "
+        android:textSize="18sp"
+        android:textColor="@color/dark_blue"
+        app:layout_constraintTop_toBottomOf="@id/bot_status"
+        app:layout_constraintStart_toStartOf="@id/bot_status"
+        android:layout_marginTop="10dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+
+    <TextView
+        android:id="@+id/bot_time_update"
+        android:text="5 phút trước"
+        android:textSize="18sp"
+        android:textColor="@color/dark_blue"
+        app:layout_constraintStart_toEndOf="@id/txt4"
+        app:layout_constraintTop_toTopOf="@id/txt4"
+        app:layout_constraintBottom_toBottomOf="@id/txt4"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+</androidx.constraintlayout.widget.ConstraintLayout>
