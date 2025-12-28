@@ -102,7 +102,7 @@
                 <EditText
                     android:id="@+id/user_name"
                     android:background="@null"
-                    android:hint="Xuân Hữu"
+                    android:hint=""
                     android:textColor="@color/dark_blue"
                     android:textColorHint="@color/dark_blue"
                     android:textSize="24sp"

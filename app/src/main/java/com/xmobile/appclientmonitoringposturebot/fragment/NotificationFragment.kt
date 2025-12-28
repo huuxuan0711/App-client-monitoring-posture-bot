@@ -54,6 +54,7 @@ class NotificationFragment : Fragment() {
 
     private fun initControl() {
         listenNotification(device?.userId ?: "")
+        getNotification(device?.userId ?: "")
 
         binding.layoutFilter.setOnClickListener { view ->
             NotificationTypePopupHelper.show(

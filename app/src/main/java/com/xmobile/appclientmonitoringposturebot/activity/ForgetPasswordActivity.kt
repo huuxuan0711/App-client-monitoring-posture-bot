@@ -34,6 +34,10 @@ class ForgetPasswordActivity : AppCompatActivity() {
             val email = binding.edtEmail.text.toString()
             if (validate(email)) sendEmail(email)
         }
+
+        binding.backLayout.setOnClickListener {
+            finish()
+        }
     }
 
     private fun validate(email: String): Boolean {

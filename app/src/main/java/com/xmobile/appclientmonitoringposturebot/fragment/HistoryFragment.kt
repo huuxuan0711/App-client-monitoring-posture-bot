@@ -47,6 +47,8 @@ import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.YearMonth
 import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import java.time.temporal.WeekFields
 
@@ -113,7 +115,21 @@ class HistoryFragment : Fragment() {
             binding.layoutSummaryDay.visibility = View.GONE
             binding.layoutSummaryWeek.visibility = View.GONE
             binding.layoutSummaryMonth.visibility = View.VISIBLE
-            getMonthRecords(userId, OffsetDateTime.now().minusMonths(1), OffsetDateTime.now())
+            val month = YearMonth.from(currentToTime)
+            val zone = ZoneOffset.UTC
+
+            val from: OffsetDateTime =
+                month.atDay(1)
+                    .atStartOfDay()
+                    .atOffset(zone)
+
+            val to: OffsetDateTime =
+                month.plusMonths(1)
+                    .atDay(1)
+                    .atStartOfDay()
+                    .atOffset(zone)
+
+            getMonthRecords(userId, from, to)
             updateScrollTime()
         }
 
@@ -232,46 +248,101 @@ class HistoryFragment : Fragment() {
 
     }
 
-    private fun updateScrollTime(){
-        when (currentToTime) {
-            OffsetDateTime.now() -> {
-                binding.imgNext.setColorFilter(ContextCompat.getColor(requireContext(), R.color.gray))
-                binding.imgNext.isEnabled = false
-                when (currentTab) {
-                    0 -> binding.txtDuration.text = "Hôm nay"
-                    1 -> binding.txtDuration.text = "Tuần này"
-                    2 -> binding.txtDuration.text = "Tháng này"
-                }
-            }
-            OffsetDateTime.now().minusDays(1) -> {
-                binding.imgNext.setColorFilter(ContextCompat.getColor(requireContext(), R.color.purple))
-                binding.imgNext.isEnabled = true
-                when (currentTab) {
-                    0 -> binding.txtDuration.text = "Hôm qua"
-                    1 -> binding.txtDuration.text = "Tuần trước"
-                    2 -> binding.txtDuration.text = "Tháng trước"
-                }
-            }
-            else -> {
-                binding.imgNext.setColorFilter(ContextCompat.getColor(requireContext(), R.color.purple))
-                binding.imgNext.isEnabled = true
-                when (currentTab) {
-                    0 -> {
-                        val formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
+    private fun updateScrollTime() {
+
+        val now = OffsetDateTime.now()
+        val today = now.toLocalDate()
+
+        val toDate = currentToTime?.toLocalDate()
+        val toMonth = currentToTime?.let { YearMonth.from(it) }
+
+        when (currentTab) {
+
+            // ================= DAY =================
+            0 -> {
+                when {
+                    toDate == today -> {
+                        disableNext()
+                        binding.txtDuration.text = "Hôm nay"
+                    }
+
+                    toDate == today.minusDays(1) -> {
+                        enableNext()
+                        binding.txtDuration.text = "Hôm qua"
+                    }
+
+                    else -> {
+                        enableNext()
+                        val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
                         binding.txtDuration.text = currentToTime?.format(formatter)
                     }
-                    1 -> {
-                        val formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
-                        binding.txtDuration.text = currentFromTime?.format(formatter) + " - " + currentToTime?.format(formatter)
+                }
+            }
+
+            // ================= WEEK =================
+            1 -> {
+                val currentWeekStart = today.with(DayOfWeek.MONDAY)
+                val toWeekStart = toDate?.with(DayOfWeek.MONDAY)
+
+                when {
+                    toWeekStart == currentWeekStart -> {
+                        disableNext()
+                        binding.txtDuration.text = "Tuần này"
                     }
-                    2 -> {
-                        val formatter = java.time.format.DateTimeFormatter.ofPattern("MM/yyyy")
-                        binding.txtDuration.text = currentToTime?.format(formatter)
+
+                    toWeekStart == currentWeekStart.minusWeeks(1) -> {
+                        enableNext()
+                        binding.txtDuration.text = "Tuần trước"
+                    }
+
+                    else -> {
+                        enableNext()
+                        val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+                        binding.txtDuration.text =
+                            "${currentFromTime?.format(formatter)} - ${currentToTime?.format(formatter)}"
+                    }
+                }
+            }
+
+            // ================= MONTH =================
+            2 -> {
+                val displayMonth = YearMonth.from(currentFromTime)
+                val thisMonth = YearMonth.now()
+
+                when (displayMonth) {
+                    thisMonth -> {
+                        disableNext()
+                        binding.txtDuration.text = "Tháng này"
+                    }
+                    thisMonth.minusMonths(1) -> {
+                        enableNext()
+                        binding.txtDuration.text = "Tháng trước"
+                    }
+                    else -> {
+                        enableNext()
+                        val formatter = DateTimeFormatter.ofPattern("MM/yyyy")
+                        binding.txtDuration.text = displayMonth.format(formatter)
                     }
                 }
             }
         }
     }
+
+    private fun disableNext() {
+        binding.imgNext.setColorFilter(
+            ContextCompat.getColor(requireContext(), R.color.gray)
+        )
+        binding.imgNext.isEnabled = false
+    }
+
+    private fun enableNext() {
+        binding.imgNext.setColorFilter(
+            ContextCompat.getColor(requireContext(), R.color.purple)
+        )
+        binding.imgNext.isEnabled = true
+    }
+
+
 
     private fun getMonthRecords(userId: String, fromTime: OffsetDateTime, toTime: OffsetDateTime){
         currentFromTime = fromTime
@@ -445,9 +516,6 @@ class HistoryFragment : Fragment() {
     }
 
     private fun setUpWeekSummary(weekRecords: List<PostureRecord>) {
-
-        if (weekRecords.isEmpty()) return
-
         val recordsByDay = groupRecordsByDate(weekRecords)
         val dailyPercents = calculateDailyGoodPercent(recordsByDay)
 
@@ -620,17 +688,16 @@ class HistoryFragment : Fragment() {
 
         val recordsByDate = groupRecordsByDate(records)
 
-        val startMonth: YearMonth = YearMonth.from(currentFromTime)
-        val endMonth: YearMonth = YearMonth.from(currentToTime)
+        val displayMonth: YearMonth = YearMonth.from(currentFromTime)
         val today = LocalDate.now()
 
         // ===== Setup calendar =====
         calendarView.setup(
-            startMonth,
-            endMonth,
+            displayMonth,
+            displayMonth,
             DayOfWeek.MONDAY
         )
-        calendarView.scrollToMonth(YearMonth.now())
+        calendarView.scrollToMonth(displayMonth)
 
         // ===== Day binder =====
         calendarView.dayBinder =
@@ -696,6 +763,7 @@ class HistoryFragment : Fragment() {
 
                     // ---- Click day ----
                     container.view.setOnClickListener {
+                        Log.e("click", "click")
                         if (!dayRecords.isNullOrEmpty()) {
                             val fromTime: OffsetDateTime =
                                 data.date.toStartOfDayOffset()
@@ -823,9 +891,24 @@ class HistoryFragment : Fragment() {
 
 
     private fun setUpBarChart(records: List<PostureRecord>, isDay: Boolean) {
-        if (isDay){
-            val barChart = binding.barChart
 
+        val barChart = binding.barChart
+
+        barChart.clear()
+        barChart.data = null
+        barChart.highlightValues(null)
+        barChart.xAxis.resetAxisMinimum()
+        barChart.xAxis.resetAxisMaximum()
+        barChart.notifyDataSetChanged()
+
+        barChart.apply {
+            description.isEnabled = false
+            legend.isEnabled = false
+            setTouchEnabled(false)
+            setScaleEnabled(false)
+        }
+
+        if (isDay) {
             val hourlyPercents = calculateHourlyStats(todayRecords).map {
                 if (it.totalMs == 0L) 0f
                 else it.goodMs * 100f / it.totalMs
@@ -839,80 +922,69 @@ class HistoryFragment : Fragment() {
                 color = requireContext().getColor(R.color.purple)
                 setDrawValues(false)
                 highLightAlpha = 120
-                highLightColor = ContextCompat.getColor(requireContext(), R.color.purple)
+                highLightColor =
+                    ContextCompat.getColor(requireContext(), R.color.purple)
             }
 
             barChart.data = BarData(dataSet).apply {
                 barWidth = 0.8f
             }
 
-            // ===== Chart config =====
-            barChart.apply {
-                description.isEnabled = false
-                legend.isEnabled = false
-                setTouchEnabled(false)
-                setScaleEnabled(false)
-                animateY(600)
-            }
-
-            // ===== X Axis (0,3,6,...,21,0) =====
-            val hourLabels = listOf(
-                "0", "", "", "3", "", "", "6", "", "",
-                "9", "", "", "12", "", "", "15", "", "",
-                "18", "", "", "21", "", "", "0"
-            )
-
+            // ===== X AXIS DAY (0 → 23) =====
             barChart.xAxis.apply {
                 position = XAxis.XAxisPosition.BOTTOM
+                axisMinimum = -0.5f
+                axisMaximum = 23.5f
                 granularity = 1f
-                axisMinimum = 0f
-                axisMaximum = 23f
+                setLabelCount(8, false)
                 setDrawGridLines(false)
                 setDrawAxisLine(false)
+                setAvoidFirstLastClipping(true)
 
                 valueFormatter = object : ValueFormatter() {
                     override fun getFormattedValue(value: Float): String {
-                        val index = value.toInt()
-                        return hourLabels.getOrNull(index) ?: ""
+                        return when (value.toInt()) {
+                            0, 3, 6, 9, 12, 15, 18, 21 -> value.toInt().toString()
+                            else -> ""
+                        }
                     }
                 }
-
-                textColor = requireContext().getColor(R.color.dark_blue)
-                textSize = 10f
+                textColor =
+                    requireContext().getColor(R.color.dark_blue)
+                textSize = 12f
             }
 
-            // ===== Y Axis =====
+            // ===== Y AXIS =====
             barChart.axisLeft.apply {
                 axisMinimum = 0f
                 axisMaximum = 100f
                 granularity = 25f
                 setDrawGridLines(true)
-                textColor = requireContext().getColor(R.color.dark_blue)
+                textColor =
+                    requireContext().getColor(R.color.dark_blue)
             }
 
             barChart.axisRight.isEnabled = false
 
-            barChart.invalidate()
-        }else{
-            val barChart = binding.barChart
+            barChart.animateY(600)
 
+        } else {
             val recordsByDay = groupRecordsByDate(records)
             val dailyPercents = calculateDailyGoodPercent(recordsByDay)
 
-            // ===== Bar entries =====
             val entries = dailyPercents.mapIndexed { index, pair ->
                 BarEntry(index.toFloat(), pair.second)
             }
 
-            val todayIndex = LocalDate.now().dayOfWeek.value - 1 // MON = 0
+            val todayIndex =
+                LocalDate.now().dayOfWeek.value - 1 // MON = 0
 
             val dataSet = BarDataSet(entries, "").apply {
                 colors = entries.mapIndexed { index, _ ->
-                    if (index == todayIndex) {
+                    if (index == todayIndex)
                         requireContext().getColor(R.color.purple)
-                    } else {
+                    else
                         requireContext().getColor(R.color.dark_blue)
-                    }
                 }
                 setDrawValues(false)
             }
@@ -921,49 +993,59 @@ class HistoryFragment : Fragment() {
                 barWidth = 0.6f
             }
 
-            // ===== Chart config =====
-            barChart.apply {
-                description.isEnabled = false
-                legend.isEnabled = false
-                setTouchEnabled(false)
-                setScaleEnabled(false)
-                animateY(800, Easing.EaseInOutQuad)
-            }
-
-            // ===== X Axis (MON → SUN, highlight today) =====
-            val labels = listOf("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
-
+            // ===== X AXIS WEEK (MON → SUN) =====
             barChart.xAxis.apply {
                 position = XAxis.XAxisPosition.BOTTOM
+
+                axisMinimum = -0.5f
+                axisMaximum = 6.5f
                 granularity = 1f
+
+                setCenterAxisLabels(true)
+                setAvoidFirstLastClipping(true)
                 setDrawGridLines(false)
                 setDrawAxisLine(false)
+
                 textSize = 12f
+                textColor = requireContext().getColor(R.color.dark_blue)
 
                 valueFormatter = object : ValueFormatter() {
                     override fun getFormattedValue(value: Float): String {
-                        val index = value.toInt()
-                        if (index !in labels.indices) return ""
-                        return labels[index]
+                        if (value % 1f != 0f) return ""
+                        return when (value.toInt()) {
+                            0 -> "MON"
+                            1 -> "TUE"
+                            2 -> "WED"
+                            3 -> "THU"
+                            4 -> "FRI"
+                            5 -> "SAT"
+                            6 -> "SUN"
+                            else -> ""
+                        }
                     }
                 }
-
-                textColor = requireContext().getColor(R.color.dark_blue)
             }
 
-            // ===== Y Axis =====
+            // ===== Y AXIS =====
             barChart.axisLeft.apply {
                 axisMinimum = 0f
                 axisMaximum = 100f
                 granularity = 25f
                 setDrawGridLines(true)
-                textColor = requireContext().getColor(R.color.dark_blue)
+                textColor =
+                    requireContext().getColor(R.color.dark_blue)
             }
-
             barChart.axisRight.isEnabled = false
-
-            barChart.invalidate()
+            barChart.setExtraOffsets(
+                -8f,  // left  (dịch trái)
+                0f,   // top
+                0f,   // right
+                0f    // bottom
+            )
+            barChart.animateY(800, Easing.EaseInOutQuad)
         }
+
+        barChart.invalidate()
     }
 
     private fun calculateDailyGoodPercent(
@@ -1064,6 +1146,7 @@ class HistoryFragment : Fragment() {
     }
 
     private fun updateTab(selectedIndex: Int) {
+        currentTab = selectedIndex
         val items = listOf(
             binding.txtDay,
             binding.txtWeek,

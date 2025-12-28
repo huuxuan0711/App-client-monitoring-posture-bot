@@ -194,12 +194,25 @@
             android:layout_width="200dp"
             android:layout_height="200dp"/>
 
+        <TextView
+            android:id="@+id/txtNullData"
+            android:text="Chưa có dữ liệu"
+            android:textSize="20sp"
+            android:textColor="@color/dark_blue"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/layout2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
         <LinearLayout
             android:id="@+id/layout3"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/pieChart"
             app:layout_constraintEnd_toEndOf="parent"
             android:layout_marginEnd="30dp"
+            android:layout_marginBottom="20dp"
             android:gravity="center"
             android:orientation="horizontal"
             android:layout_width="wrap_content"
@@ -224,8 +237,8 @@
             android:id="@+id/layout1"
             android:gravity="center"
             android:orientation="horizontal"
+            android:layout_marginBottom="20dp"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/pieChart"
             app:layout_constraintStart_toStartOf="parent"
             android:layout_marginStart="30dp"
             android:layout_width="wrap_content"
@@ -250,7 +263,7 @@
             android:id="@+id/layout2"
             android:gravity="center"
             android:orientation="horizontal"
-            app:layout_constraintTop_toBottomOf="@id/pieChart"
+            android:layout_marginBottom="20dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"

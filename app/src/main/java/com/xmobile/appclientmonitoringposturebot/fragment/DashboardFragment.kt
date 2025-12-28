@@ -75,6 +75,7 @@ class DashboardFragment : Fragment() {
     private fun initControl() {
         userId = device?.userId ?: return
         listenRecord(userId)
+        getTodayRecords(userId)
         getWeekRecords(userId)
 
         binding.barChartWeek.setOnChartValueSelectedListener(
@@ -190,7 +191,7 @@ class DashboardFragment : Fragment() {
             .getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
 
         if (prefs.getLong("goal_ms", 0).toInt() == 0) {
-            binding.layoutStreak.visibility = View.GONE
+            binding.layout1.visibility = View.GONE
             return
         }
 
@@ -447,6 +448,10 @@ class DashboardFragment : Fragment() {
             centerText = "${goodPercent.toInt()}%"
             setCenterTextSize(18f)
             setCenterTextTypeface(Typeface.DEFAULT_BOLD)
+        }
+
+        if (todayRecords.isEmpty()) {
+            pieChart.centerText = "Chưa có dữ liệu"
         }
 
         pieChart.setCenterTextColor(

@@ -161,6 +161,14 @@ class PairDeviceActivity : AppCompatActivity() {
         if (userId == null) return
         lifecycleScope.launch {
             try {
+                SupabaseProvider.client.auth.awaitInitialization()
+
+                val session = SupabaseProvider.client.auth.currentSessionOrNull()
+                if (session == null) {
+                    startActivity(Intent(this@PairDeviceActivity, LoginActivity::class.java))
+                    finish()
+                    return@launch
+                }
                  devices = supabase
                     .from("user_devices")
                     .select {
@@ -188,7 +196,7 @@ class PairDeviceActivity : AppCompatActivity() {
     }
 
     private fun setUpRecyclerView(devices: List<UserDevice>) {
-        val adapter = DevicesAdapter(devices) {
+        val adapter = DevicesAdapter(devices, this) {
             val intentNav = Intent(this, MainActivity::class.java)
             if (intent.hasExtra("navigate_to")) {
                 intentNav.putExtra("navigate_to", "notification")

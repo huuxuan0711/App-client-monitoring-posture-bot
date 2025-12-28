@@ -2,6 +2,7 @@ package com.xmobile.appclientmonitoringposturebot.activity
 
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.viewpager2.widget.ViewPager2
@@ -24,6 +25,7 @@ class MainActivity : AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private fun initControl() {
         device = intent.getSerializableExtra("device", UserDevice::class.java)
+        Log.e("device", device.toString())
 
         setUpViewPager()
         setUpBottomNavigation()

@@ -35,11 +35,14 @@ class ProfileActivity : AppCompatActivity() {
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private fun initControl() {
+        val userName = getSharedPreferences("MyPrefs", MODE_PRIVATE).getString("user_name", "")
+        binding.userName.hint = userName
+
         binding.imgBack.setOnClickListener {
-            val intent = Intent(this, MainActivity::class.java)
+            val intentNav = Intent(this, MainActivity::class.java)
             val device = intent.getSerializableExtra("device", UserDevice::class.java)
-            intent.putExtra("device", device)
-            startActivity(intent)
+            intentNav.putExtra("device", device)
+            startActivity(intentNav)
             finish()
         }
 
@@ -47,17 +50,17 @@ class ProfileActivity : AppCompatActivity() {
             binding.txtDoneUser.visibility = View.VISIBLE
             binding.imgModifyUser.visibility = View.GONE
             binding.userName.isFocusableInTouchMode = true
-            binding.userName.performClick()
+            binding.userName.requestFocus()
         }
 
         binding.txtDoneUser.setOnClickListener {
-            binding.txtDoneUser.visibility = View.GONE
-            binding.imgModifyUser.visibility = View.VISIBLE
-
             val userName = binding.userName.text.toString()
             if (validate(userName)) {
+                binding.txtDoneUser.visibility = View.GONE
+                binding.imgModifyUser.visibility = View.VISIBLE
                 binding.userName.isFocusableInTouchMode = false
                 binding.userName.clearFocus()
+                binding.userName.hint = userName
                 updateUserName(userName)
                 val sharedPreferences = getSharedPreferences("MyPrefs", MODE_PRIVATE)
                 sharedPreferences.edit {
@@ -70,12 +73,14 @@ class ProfileActivity : AppCompatActivity() {
             binding.imgModifyGoal.visibility = View.GONE
             binding.imgDoneGoal.visibility = View.VISIBLE
             binding.edtGoal.isFocusableInTouchMode = true
-            binding.edtGoal.performClick()
+            binding.edtGoal.requestFocus()
         }
 
         binding.imgDoneGoal.setOnClickListener {
             binding.imgModifyGoal.visibility = View.VISIBLE
             binding.imgDoneGoal.visibility = View.GONE
+            binding.edtGoal.isFocusableInTouchMode = false
+            binding.edtGoal.clearFocus()
 
             var goal: Int = 0
 

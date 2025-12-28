@@ -43,7 +43,7 @@ class LoginActivity : AppCompatActivity() {
         }
 
         binding.txtForgetPassword.setOnClickListener {
-            startActivity(Intent(this, ResetPasswordActivity::class.java))
+            startActivity(Intent(this, ForgetPasswordActivity::class.java))
         }
 
         binding.imgShow.setOnClickListener {

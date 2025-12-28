@@ -27,11 +27,10 @@ object NotificationTypePopupHelper {
 
         val location = IntArray(2)
         anchorView.getLocationOnScreen(location)
-        popup.showAtLocation(
+        popup.showAsDropDown(
             anchorView,
-            Gravity.NO_GRAVITY,
-            location[0] + anchorView.width,
-            location[1] + anchorView.height + 15
+            0,
+            15
         )
 
         val ids = listOf(

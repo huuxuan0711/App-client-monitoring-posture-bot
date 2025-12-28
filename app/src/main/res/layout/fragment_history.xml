@@ -134,13 +134,13 @@
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
+                    android:layout_height="300dp">
 
                     <com.github.mikephil.charting.charts.BarChart
                         android:id="@+id/barChart"
                         android:visibility="visible"
                         android:layout_width="match_parent"
-                        android:layout_height="300dp"/>
+                        android:layout_height="match_parent"/>
 
                     <com.kizitonwose.calendar.view.CalendarView
                         android:id="@+id/calendar"
