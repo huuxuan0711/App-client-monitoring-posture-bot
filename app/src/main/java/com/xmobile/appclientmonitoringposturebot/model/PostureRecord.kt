@@ -12,5 +12,5 @@ data class PostureRecord(
     val confidence: Double?,
     val keypoints: Map<String, String>?,
     val created_at: String,
-    val metrics: Map<String, String>?
+    val metrics: Map<String, Double>?
 )

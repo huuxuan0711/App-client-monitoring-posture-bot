@@ -38,6 +38,10 @@ class ProfileActivity : AppCompatActivity() {
         val userName = getSharedPreferences("MyPrefs", MODE_PRIVATE).getString("user_name", "")
         binding.userName.hint = userName
 
+        val goalMs = getSharedPreferences("MyPrefs", MODE_PRIVATE).getLong("goal_ms", 0)
+        val goal = goalMs / (60 * 60 * 1000)
+        binding.edtGoal.hint = goal.toString()
+
         binding.imgBack.setOnClickListener {
             val intentNav = Intent(this, MainActivity::class.java)
             val device = intent.getSerializableExtra("device", UserDevice::class.java)

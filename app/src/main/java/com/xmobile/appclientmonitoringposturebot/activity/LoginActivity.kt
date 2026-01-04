@@ -19,8 +19,14 @@ import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.launch
 import kotlin.toString
 import androidx.core.content.edit
+import com.google.firebase.messaging.FirebaseMessaging
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import java.time.OffsetDateTime
 
 class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
@@ -80,20 +86,65 @@ class LoginActivity : AppCompatActivity() {
                     this.email = email
                     this.password = password
                 }
-                val user = SupabaseProvider.client.auth.currentSessionOrNull()?.user
+
+                val session = SupabaseProvider.client.auth.currentSessionOrNull()
+                    ?: throw IllegalStateException("Session not ready")
+
+                val user = session.user
+                Log.d("AUTH", "Login success, userId=${user?.id}")
+
                 val userProfile = getUserProfile(user?.id)
-                val sharedPreferences = getSharedPreferences("MyPrefs", MODE_PRIVATE)
-                sharedPreferences.edit {
+                getSharedPreferences("MyPrefs", MODE_PRIVATE).edit {
                     putString("user_id", user?.id)
                     putString("user_name", userProfile?.user_name)
                 }
 
-                val intent = Intent(this@LoginActivity, PairDeviceActivity::class.java)
-                startActivity(intent)
+                FirebaseMessaging.getInstance().token
+                    .addOnSuccessListener { token ->
+                        Log.d("FCM", "Got FCM token: $token")
+                        saveFcmToken(token)
+                    }
+                    .addOnFailureListener {
+                        Log.e("FCM", "Failed to get FCM token", it)
+                    }
+
+                startActivity(Intent(this@LoginActivity, PairDeviceActivity::class.java))
                 finish()
+
             } catch (e: Exception) {
+                Log.e("AUTH", "Login failed", e)
                 binding.txtWarning.visibility = View.VISIBLE
                 binding.txtWarning.text = e.message
+            }
+        }
+    }
+
+    private fun saveFcmToken(token: String) {
+        Log.d("FCM", "saveFcmToken() called")
+
+        val supabase = SupabaseProvider.client
+        val user = supabase.auth.currentUserOrNull()
+
+        if (user == null) {
+            Log.w("FCM", "User is null, skip saving FCM token")
+            return
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                supabase.from("user_fcm_tokens").upsert(
+                    buildJsonObject {
+                        put("user_id", user.id)
+                        put("fcm_token", token)
+                        put("is_active", true)
+                    },
+                    onConflict = "fcm_token"
+                )
+
+                Log.d("FCM", "FCM token saved to Supabase")
+
+            } catch (e: Exception) {
+                Log.e("FCM", "Failed to save FCM token", e)
             }
         }
     }

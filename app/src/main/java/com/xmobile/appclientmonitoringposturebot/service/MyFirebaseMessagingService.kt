@@ -51,9 +51,9 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                         mapOf(
                             "user_id" to user.id,
                             "fcm_token" to token,
-                            "is_active" to true,
-                            "last_active_at" to OffsetDateTime.now().toString()
-                        )
+                            "is_active" to true
+                        ),
+                        onConflict = "fcm_token"
                     )
 
                 Log.d("FCM", "FCM token saved to Supabase")

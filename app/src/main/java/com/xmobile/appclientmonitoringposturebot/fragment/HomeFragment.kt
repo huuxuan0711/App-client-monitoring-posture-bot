@@ -39,6 +39,8 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import java.time.Duration
+import java.time.OffsetDateTime
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 class HomeFragment : Fragment() {
@@ -181,7 +183,7 @@ class HomeFragment : Fragment() {
                         limit(1)
                     }
                     .decodeSingleOrNull<JsonObject>()
-
+                Log.e("record", record.toString())
                 if (record == null) {
                     binding.cardStatusPosture3.visibility = View.GONE
                     binding.pieChart.visibility = View.GONE
@@ -204,7 +206,7 @@ class HomeFragment : Fragment() {
                 table = "posture_records"
             }.collect { action ->
                 val record = (action as? PostgresAction.Insert)?.record ?: return@collect
-
+                Log.e("record", record.toString())
                 val recordUserId =
                     record["user_id"]?.jsonPrimitive?.content ?: return@collect
 
@@ -223,8 +225,25 @@ class HomeFragment : Fragment() {
         val confidence = record["confidence"]?.jsonPrimitive?.doubleOrNull
         val metrics = record["metrics"]?.jsonObject
 
+        val createdAt = record["created_at"]?.jsonPrimitive?.content
+        binding.botTimeUpdate.text = formatDurationFromNow(OffsetDateTime.parse(createdAt))
+
         setUpPieChart(postureType)
         setUpPosture(postureType, confidence, metrics)
+    }
+
+    private fun formatDurationFromNow(time: OffsetDateTime): String {
+
+        val now = OffsetDateTime.now()
+        val diffMs = Duration.between(time, now).toMillis()
+
+        if (diffMs <= 0) return "0h0m"
+
+        val totalMinutes = diffMs / 1000 / 60
+        val hours = totalMinutes / 60
+        val minutes = totalMinutes % 60
+
+        return "${hours}h${minutes}m trước"
     }
 
     private fun setUpPieChart(postureType: String?) {
@@ -274,9 +293,17 @@ class HomeFragment : Fragment() {
         confidence: Double?,
         metrics: JsonObject?
     ) {
+        Log.e("postureType231", postureType.toString())
+
         binding.confidence.text = "${confidence?.times(100)?.toInt()}%"
-        binding.neckAngle.text =
-            metrics?.get("neck_angle")?.jsonPrimitive?.content + "°"
+
+        val neckAngle = metrics
+            ?.get("neck_angle")
+            ?.jsonPrimitive
+            ?.doubleOrNull
+            ?.toInt()
+
+        binding.neckAngle.text = neckAngle?.let { "$it°" } ?: "--"
 
         when (postureType?.lowercase()) {
             "good" -> {
@@ -295,4 +322,5 @@ class HomeFragment : Fragment() {
             }
         }
     }
+
 }

@@ -17,6 +17,7 @@ import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.github.mikephil.charting.animation.Easing
+import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.BarData
 import com.github.mikephil.charting.data.BarDataSet
@@ -39,6 +40,7 @@ import com.xmobile.appclientmonitoringposturebot.model.PostureRecord
 import com.xmobile.appclientmonitoringposturebot.model.PostureState
 import com.xmobile.appclientmonitoringposturebot.model.UserDevice
 import com.xmobile.appclientmonitoringposturebot.model.WeekKey
+import com.xmobile.appclientmonitoringposturebot.util.ConvertTimeZone.createdAtLocal
 import com.xmobile.appclientmonitoringposturebot.util.StatisticPosetureRecord
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
@@ -51,6 +53,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import java.time.temporal.WeekFields
+import kotlin.math.min
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 class HistoryFragment : Fragment() {
@@ -62,8 +65,13 @@ class HistoryFragment : Fragment() {
     private var monthRecords: List<PostureRecord> = emptyList()
 
     private var currentTab: Int = 0
-    private var currentFromTime: OffsetDateTime? = null
-    private var currentToTime: OffsetDateTime? = null
+
+    private var currentDay: LocalDate = LocalDate.now()
+    private var currentWeekStart: LocalDate =
+        LocalDate.now().with(DayOfWeek.MONDAY)
+    private var currentMonth: YearMonth = YearMonth.now()
+    private var txtDuration: String = ""
+
     private val confidenceThreshold = 0.7
 
     private var lastHighlight: Highlight? = null
@@ -88,10 +96,11 @@ class HistoryFragment : Fragment() {
             updateTab(0)
             binding.barChart.visibility = View.VISIBLE
             binding.calendar.visibility = View.GONE
+            binding.layoutSession.visibility = View.GONE
             binding.layoutSummaryDay.visibility = View.VISIBLE
             binding.layoutSummaryWeek.visibility = View.GONE
             binding.layoutSummaryMonth.visibility = View.GONE
-            getTodayRecords(userId, OffsetDateTime.now().minusDays(1), OffsetDateTime.now())
+            getTodayRecords(userId, LocalDate.now())
             updateScrollTime()
         }
 
@@ -99,10 +108,14 @@ class HistoryFragment : Fragment() {
             updateTab(1)
             binding.barChart.visibility = View.VISIBLE
             binding.calendar.visibility = View.GONE
+            binding.layoutSession.visibility = View.GONE
             binding.layoutSummaryDay.visibility = View.GONE
             binding.layoutSummaryWeek.visibility = View.VISIBLE
             binding.layoutSummaryMonth.visibility = View.GONE
-            getWeekRecords(userId, OffsetDateTime.now().minusDays(7), OffsetDateTime.now())
+            val monday =
+                LocalDate.now().with(DayOfWeek.MONDAY)
+
+            getWeekRecords(userId, monday)
             updateScrollTime()
             binding.barChart.highlightValues(null)
             lastHighlight = null
@@ -112,24 +125,11 @@ class HistoryFragment : Fragment() {
             updateTab(2)
             binding.barChart.visibility = View.GONE
             binding.calendar.visibility = View.VISIBLE
+            binding.layoutSession.visibility = View.GONE
             binding.layoutSummaryDay.visibility = View.GONE
             binding.layoutSummaryWeek.visibility = View.GONE
-            binding.layoutSummaryMonth.visibility = View.VISIBLE
-            val month = YearMonth.from(currentToTime)
-            val zone = ZoneOffset.UTC
-
-            val from: OffsetDateTime =
-                month.atDay(1)
-                    .atStartOfDay()
-                    .atOffset(zone)
-
-            val to: OffsetDateTime =
-                month.plusMonths(1)
-                    .atDay(1)
-                    .atStartOfDay()
-                    .atOffset(zone)
-
-            getMonthRecords(userId, from, to)
+            val month = YearMonth.now()
+            getMonthRecords(userId, month)
             updateScrollTime()
         }
 
@@ -137,18 +137,21 @@ class HistoryFragment : Fragment() {
 
         binding.imgBack.setOnClickListener {
             when (currentTab) {
+
                 0 -> {
-                    getTodayRecords(userId, currentFromTime?.minusDays(1) ?: OffsetDateTime.now(),
-                        currentToTime?.minusDays(1) ?: OffsetDateTime.now()
-                    )
+                    currentDay = currentDay.minusDays(1)
+                    getTodayRecords(userId, currentDay)
                 }
+
                 1 -> {
-                    getWeekRecords(userId, currentFromTime?.minusDays(7) ?: OffsetDateTime.now(),
-                        currentToTime?.minusDays(7) ?: OffsetDateTime.now())
+                    currentWeekStart = currentWeekStart.minusWeeks(1)
+                    getWeekRecords(userId, currentWeekStart)
                 }
+
+                // ===== MONTH =====
                 2 -> {
-                    getMonthRecords(userId, currentFromTime?.minusMonths(1) ?: OffsetDateTime.now(),
-                        currentToTime?.minusMonths(1) ?: OffsetDateTime.now())
+                    currentMonth = currentMonth.minusMonths(1)
+                    getMonthRecords(userId, currentMonth)
                 }
             }
             updateScrollTime()
@@ -156,22 +159,26 @@ class HistoryFragment : Fragment() {
 
         binding.imgNext.setOnClickListener {
             when (currentTab) {
+
                 0 -> {
-                    getTodayRecords(userId, currentFromTime?.plusDays(1) ?: OffsetDateTime.now(),
-                        currentToTime?.plusDays(1) ?: OffsetDateTime.now()
-                    )
+                    currentDay = currentDay.plusDays(1)
+                    binding.layoutSession.visibility = View.GONE
+                    getTodayRecords(userId, currentDay)
                 }
+
                 1 -> {
-                    getWeekRecords(userId, currentFromTime?.plusDays(7) ?: OffsetDateTime.now(),
-                        currentToTime?.plusDays(7) ?: OffsetDateTime.now())
+                    currentWeekStart = currentWeekStart.plusWeeks(1)
+                    getWeekRecords(userId, currentWeekStart)
                 }
+
                 2 -> {
-                    getMonthRecords(userId, currentFromTime?.plusMonths(1) ?: OffsetDateTime.now(),
-                        currentToTime?.plusMonths(1) ?: OffsetDateTime.now())
+                    currentMonth = currentMonth.plusMonths(1)
+                    getMonthRecords(userId, currentMonth)
                 }
             }
             updateScrollTime()
         }
+
 
         binding.barChart.setOnChartValueSelectedListener(
             object : OnChartValueSelectedListener {
@@ -180,57 +187,55 @@ class HistoryFragment : Fragment() {
                     e: Entry?,
                     h: Highlight?
                 ) {
-                    if (currentTab == 1 && e != null) {
+                    if (e == null) return
+
+                    // ================= WEEK → CLICK 1 NGÀY =================
+                    if (currentTab == 1) {
 
                         val dayIndex = e.x.toInt().coerceIn(0, 6)
 
-                        // Lấy Monday của tuần hiện tại
-                        val today = LocalDate.now()
-                        val mondayOfWeek =
-                            today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-
+                        // 👉 dùng cursor tuần hiện tại, KHÔNG dùng LocalDate.now()
                         val selectedDate =
-                            mondayOfWeek.plusDays(dayIndex.toLong())
+                            currentWeekStart.plusDays(dayIndex.toLong())
 
-                        val zoneId = ZoneId.systemDefault()
+                        // cập nhật cursor DAY
+                        currentDay = selectedDate
 
-                        val fromTime: OffsetDateTime =
-                            selectedDate
-                                .atStartOfDay(zoneId)
-                                .toOffsetDateTime()
-
-                        val toTime: OffsetDateTime =
-                            selectedDate
-                                .plusDays(1)
-                                .atStartOfDay(zoneId)
-                                .toOffsetDateTime()
-
+                        // fetch DAY theo LocalDate
                         getTodayRecords(
-                            device?.userId ?: "",
-                            fromTime,
-                            toTime
+                            device?.userId ?: return,
+                            selectedDate
                         )
 
                         currentTab = 0
                         updateTab(0)
                         updateScrollTime()
+
                         binding.barChart.visibility = View.VISIBLE
                         binding.calendar.visibility = View.GONE
-                    } else if (currentTab == 0 && e != null) {
+                        binding.layoutSession.visibility = View.GONE
+
+                        return
+                    }
+
+                    // ================= DAY → CLICK 1 GIỜ =================
+                    if (currentTab == 0) {
+
                         if (h == null) return
 
+                        // click lại cùng bar → unselect
                         if (lastHighlight != null &&
                             lastHighlight!!.x == h.x &&
                             lastHighlight!!.dataSetIndex == h.dataSetIndex
                         ) {
                             binding.barChart.highlightValues(null)
                             lastHighlight = null
-
                             binding.layoutSession.visibility = View.GONE
+                            binding.txtDuration.text = txtDuration
                             return
                         }
 
-                        // Click bar mới
+                        // click bar mới
                         lastHighlight = h
                         binding.barChart.highlightValue(h)
 
@@ -250,66 +255,60 @@ class HistoryFragment : Fragment() {
 
     private fun updateScrollTime() {
 
-        val now = OffsetDateTime.now()
-        val today = now.toLocalDate()
-
-        val toDate = currentToTime?.toLocalDate()
-        val toMonth = currentToTime?.let { YearMonth.from(it) }
+        val today = LocalDate.now()
 
         when (currentTab) {
 
             // ================= DAY =================
             0 -> {
-                when {
-                    toDate == today -> {
+                when (currentDay) {
+                    today -> {
                         disableNext()
                         binding.txtDuration.text = "Hôm nay"
+                        txtDuration = "Hôm nay"
                     }
-
-                    toDate == today.minusDays(1) -> {
+                    today.minusDays(1) -> {
                         enableNext()
                         binding.txtDuration.text = "Hôm qua"
+                        txtDuration = "Hôm qua"
                     }
-
                     else -> {
                         enableNext()
                         val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-                        binding.txtDuration.text = currentToTime?.format(formatter)
+                        binding.txtDuration.text = currentDay.format(formatter)
+                        txtDuration = currentDay.format(formatter)
                     }
                 }
             }
 
             // ================= WEEK =================
             1 -> {
-                val currentWeekStart = today.with(DayOfWeek.MONDAY)
-                val toWeekStart = toDate?.with(DayOfWeek.MONDAY)
+                val thisWeekStart = today.with(DayOfWeek.MONDAY)
 
-                when {
-                    toWeekStart == currentWeekStart -> {
+                when (currentWeekStart) {
+                    thisWeekStart -> {
                         disableNext()
                         binding.txtDuration.text = "Tuần này"
                     }
-
-                    toWeekStart == currentWeekStart.minusWeeks(1) -> {
+                    thisWeekStart.minusWeeks(1) -> {
                         enableNext()
                         binding.txtDuration.text = "Tuần trước"
                     }
-
                     else -> {
                         enableNext()
                         val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+                        val end = currentWeekStart.plusDays(6)
                         binding.txtDuration.text =
-                            "${currentFromTime?.format(formatter)} - ${currentToTime?.format(formatter)}"
+                            "${currentWeekStart.format(formatter)} - ${end.format(formatter)}"
                     }
                 }
             }
 
             // ================= MONTH =================
             2 -> {
-                val displayMonth = YearMonth.from(currentFromTime)
                 val thisMonth = YearMonth.now()
 
-                when (displayMonth) {
+                when (currentMonth) {
                     thisMonth -> {
                         disableNext()
                         binding.txtDuration.text = "Tháng này"
@@ -321,12 +320,13 @@ class HistoryFragment : Fragment() {
                     else -> {
                         enableNext()
                         val formatter = DateTimeFormatter.ofPattern("MM/yyyy")
-                        binding.txtDuration.text = displayMonth.format(formatter)
+                        binding.txtDuration.text = currentMonth.format(formatter)
                     }
                 }
             }
         }
     }
+
 
     private fun disableNext() {
         binding.imgNext.setColorFilter(
@@ -342,69 +342,123 @@ class HistoryFragment : Fragment() {
         binding.imgNext.isEnabled = true
     }
 
+    private fun getMonthRecords(
+        userId: String,
+        month: YearMonth
+    ) {
+        // cập nhật cursor tháng
+        currentMonth = month
 
-
-    private fun getMonthRecords(userId: String, fromTime: OffsetDateTime, toTime: OffsetDateTime){
-        currentFromTime = fromTime
-        currentToTime = toTime
+        val days =
+            (1..month.lengthOfMonth())
+                .map { month.atDay(it) }
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                monthRecords = StatisticPosetureRecord.getPostureRecordsByTimeRange(userId, fromTime, toTime)
+                monthRecords =
+                    StatisticPosetureRecord
+                        .getRecordsByLocalDates(userId, days)
+
                 setUpCalendar(monthRecords)
-                setUpMonthSummary(monthRecords, userId, fromTime, toTime)
-            }catch (e: Exception) {
-                Log.e("getDevices", e.message ?: "Unknown error")
+                binding.layoutSummaryMonth.visibility = View.VISIBLE
+                setUpMonthSummary(
+                    userId = userId,
+                    currentMonth = currentMonth,
+                    currentMonthRecords = monthRecords
+                )
+
+            } catch (e: Exception) {
+                Log.e("getMonthRecords", e.message ?: "Unknown error")
             }
         }
     }
 
-    private fun getWeekRecords(userId: String, fromTime: OffsetDateTime, toTime: OffsetDateTime){
-        currentFromTime = fromTime
-        currentToTime = toTime
+    private fun getWeekRecords(
+        userId: String,
+        weekStart: LocalDate
+    ) {
+        // cập nhật cursor tuần
+        currentWeekStart = weekStart
+
+        val days =
+            (0..6).map { weekStart.plusDays(it.toLong()) }
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                weekRecords = StatisticPosetureRecord.getPostureRecordsByTimeRange(userId, fromTime, toTime)
+                weekRecords =
+                    StatisticPosetureRecord
+                        .getRecordsByLocalDates(userId, days)
+
                 setUpBarChart(weekRecords, false)
                 setUpWeekSummary(weekRecords)
-            }catch (e: Exception) {
-                Log.e("getDevices", e.message ?: "Unknown error")
+
+            } catch (e: Exception) {
+                Log.e("getWeekRecords", e.message ?: "Unknown error")
             }
         }
     }
 
-    private fun getTodayRecords(userId: String, fromTime: OffsetDateTime, toTime: OffsetDateTime) {
-        currentFromTime = fromTime
-        currentToTime = toTime
+    private fun getTodayRecords(
+        userId: String,
+        date: LocalDate
+    ) {
+        // cập nhật cursor ngày
+        currentDay = date
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                todayRecords = StatisticPosetureRecord.getPostureRecordsByTimeRange(userId, fromTime, toTime)
+                todayRecords =
+                    StatisticPosetureRecord
+                        .getRecordsByLocalDate(userId, date)
+
                 setUpBarChart(todayRecords, true)
                 setUpDaySummary(todayRecords)
-            }catch (e: Exception) {
-                Log.e("getDevices", e.message ?: "Unknown error")
+
+            } catch (e: Exception) {
+                Log.e("getTodayRecords", e.message ?: "Unknown error")
             }
         }
     }
 
-    private fun setUpMonthSummary(monthRecords: List<PostureRecord>, userId: String, fromTime: OffsetDateTime, toTime: OffsetDateTime) {
-        val duration = calculatePostureDurationDesc(monthRecords)
+    private fun setUpMonthSummary(
+        userId: String,
+        currentMonth: YearMonth,
+        currentMonthRecords: List<PostureRecord>
+    ) {
+        // ===== Tổng thời gian =====
+        val duration = calculatePostureDurationDesc(currentMonthRecords)
         binding.txtTotalGoodDuration.text = formatDuration(duration.goodMs)
         binding.txtTotalBadDuration.text = formatDuration(duration.badMs)
 
-        val bestWeek = calculateBestWeek(monthRecords)
+        // ===== Tuần tốt nhất =====
+        val bestWeek = calculateBestWeek(currentMonthRecords)
+        bestWeek?.let { weekKey ->
+            val (start, end) = getIsoWeekRange(weekKey)
 
-        binding.txtBestWeek.text = bestWeek?.let {
-            "Tuần ${it.week}"
-        } ?: "--"
+            binding.txtBestWeek.text =
+                "${start.dayOfMonth}/${start.monthValue} – ${end.dayOfMonth}/${end.monthValue}"
+        } ?: run {
+            binding.txtBestWeek.text = "--"
+        }
+
+        // ===== So sánh với tháng trước =====
+        val lastMonth = currentMonth.minusMonths(1)
+
+        val lastMonthDays =
+            (1..lastMonth.lengthOfMonth())
+                .map { lastMonth.atDay(it) }
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val lastMonthRecords = StatisticPosetureRecord.getPostureRecordsByTimeRange(userId, fromTime, toTime)
+                val lastMonthRecords =
+                    StatisticPosetureRecord
+                        .getRecordsByLocalDates(
+                            userId,
+                            lastMonthDays
+                        )
+
                 val trend = calculateMonthTrend(
-                    currentMonthRecords = monthRecords,
+                    currentMonthRecords = currentMonthRecords,
                     lastMonthRecords = lastMonthRecords
                 )
 
@@ -415,8 +469,9 @@ class HistoryFragment : Fragment() {
                     else ->
                         "Kém hơn ${trend.diffPercent}% so với tháng trước"
                 }
-            }catch (e: Exception) {
-                Log.e("getDevices", e.message ?: "Unknown error")
+
+            } catch (e: Exception) {
+                Log.e("setUpMonthSummary", e.message ?: "Unknown error")
             }
         }
     }
@@ -472,16 +527,13 @@ class HistoryFragment : Fragment() {
     ): Map<WeekKey, List<PostureRecord>> {
 
         return records.groupBy { record ->
-            val date = OffsetDateTime
-                .parse(record.created_at)
-                .toLocalDate()
-
+            val date = record.createdAtLocal().toLocalDate()
             getWeekKey(date)
         }
     }
 
 
-    fun calculateWeekGoodPercent(
+    private fun calculateWeekGoodPercent(
         weekRecords: List<PostureRecord>
     ): Float {
 
@@ -494,7 +546,7 @@ class HistoryFragment : Fragment() {
         return dailyPercents.map { it.second }.average().toFloat()
     }
 
-    fun calculateBestWeek(monthRecords: List<PostureRecord>): WeekKey? {
+    private fun calculateBestWeek(monthRecords: List<PostureRecord>): WeekKey? {
 
         if (monthRecords.isEmpty()) return null
 
@@ -508,6 +560,20 @@ class HistoryFragment : Fragment() {
             ?.key
     }
 
+    private fun getIsoWeekRange(weekKey: WeekKey): Pair<LocalDate, LocalDate> {
+
+        val weekFields = WeekFields.ISO
+
+        // Lấy ngày bất kỳ trong tuần đó (ISO: tuần 1 luôn chứa ngày 4/1)
+        val startOfWeek = LocalDate
+            .of(weekKey.year, 1, 4)
+            .with(weekFields.weekOfWeekBasedYear(), weekKey.week.toLong())
+            .with(weekFields.dayOfWeek(), 1) // Monday
+
+        val endOfWeek = startOfWeek.plusDays(6)
+
+        return startOfWeek to endOfWeek
+    }
 
     private fun setUpDaySummary(todayRecords: List<PostureRecord>) {
         val duration = calculatePostureDurationDesc(todayRecords)
@@ -535,6 +601,8 @@ class HistoryFragment : Fragment() {
 
         val bestDay = dailyPercents.maxByOrNull { it.second }?.first
         val worstDay = dailyPercents.minByOrNull { it.second }?.first
+        Log.e("bestDay", bestDay.toString())
+        Log.e("worstDay", worstDay.toString())
 
         binding.bestDay.text = bestDay?.let { formatDayShort(it) } ?: "--"
         binding.worstDay.text = worstDay?.let { formatDayShort(it) } ?: "--"
@@ -544,27 +612,49 @@ class HistoryFragment : Fragment() {
         return date.dayOfWeek.name.take(3)
     }
 
-    private fun calculateGoodMs(records: List<PostureRecord>): Long {
+    private fun calculateGoodMs(
+        records: List<PostureRecord>
+    ): Long {
+
         if (records.isEmpty()) return 0L
 
+        val MAX_GAP_MS = 60_000L
         var goodMs = 0L
+        val now = OffsetDateTime.now()
 
+        // ---------- record mới nhất → hiện tại ----------
+        val first = records.first()
+        val firstTime = first.createdAtLocal()
+
+        if ((first.confidence ?: 0.0) >= confidenceThreshold &&
+            first.posture_type.equals("good", ignoreCase = true)
+        ) {
+            val raw = Duration.between(firstTime, now).toMillis()
+            val duration = min(raw, MAX_GAP_MS)
+            if (duration > 0) goodMs += duration
+        }
+
+        // ---------- record → record ----------
         for (i in 0 until records.lastIndex) {
+
             val current = records[i]
             val next = records[i + 1]
 
-            val currentTime = OffsetDateTime.parse(current.created_at)
-            val nextTime = OffsetDateTime.parse(next.created_at)
+            val confidence = current.confidence ?: 0.0
+            if (confidence < confidenceThreshold) continue
+            if (!current.posture_type.equals("good", ignoreCase = true)) continue
 
-            val durationMs = Duration.between(currentTime, nextTime).toMillis()
+            val currentTime = current.createdAtLocal()
+            val nextTime = next.createdAtLocal()
 
-            if (current.posture_type == "GOOD") {
-                goodMs += durationMs
-            }
+            val raw = Duration.between(nextTime, currentTime).toMillis()
+            if (raw <= 0 || raw > MAX_GAP_MS) continue
+
+            goodMs += raw
         }
+
         return goodMs
     }
-
 
     private fun formatDuration(ms: Long): String {
         if (ms <= 0) return "0h0m"
@@ -580,6 +670,8 @@ class HistoryFragment : Fragment() {
         binding.layoutSession.visibility = View.VISIBLE
 
         val hours = calculateHourlyStats(todayRecords)
+        Log.e("hours", hours.contentToString())
+
         val hourStat = hours.getOrNull(hourIndex) ?: return
 
         if (hourStat.totalMs == 0L) {
@@ -598,6 +690,7 @@ class HistoryFragment : Fragment() {
         renderPostureTimeline(binding.timelineContainer, segments)
 
         binding.txtDuration.text = formatHourRange(hourIndex)
+        binding.hourDuration.text = formatHourRange(hourIndex)
         binding.goodDuration.text = goodMinutes.toString() + "m"
         binding.badDuration.text = badMinutes.toString() + "m"
 
@@ -685,10 +778,10 @@ class HistoryFragment : Fragment() {
 
     private fun setUpCalendar(records: List<PostureRecord>) {
         val calendarView = binding.calendar
-
+        Log.e("records", records.toString())
         val recordsByDate = groupRecordsByDate(records)
 
-        val displayMonth: YearMonth = YearMonth.from(currentFromTime)
+        val displayMonth: YearMonth = currentMonth
         val today = LocalDate.now()
 
         // ===== Setup calendar =====
@@ -763,44 +856,29 @@ class HistoryFragment : Fragment() {
 
                     // ---- Click day ----
                     container.view.setOnClickListener {
-                        Log.e("click", "click")
-                        if (!dayRecords.isNullOrEmpty()) {
-                            val fromTime: OffsetDateTime =
-                                data.date.toStartOfDayOffset()
+                        if (dayRecords.isNullOrEmpty()) return@setOnClickListener
 
-                            val toTime: OffsetDateTime =
-                                data.date.toNextDayStartOffset()
+                        val selectedDate = data.date // LocalDate
 
-                            getTodayRecords(
-                                device?.userId ?: "",
-                                fromTime,
-                                toTime
-                            )
-                            currentTab = 0
-                            updateTab(0)
-                            updateScrollTime()
-                            binding.barChart.visibility = View.VISIBLE
-                            binding.calendar.visibility = View.GONE
-                        }
+                        // cập nhật cursor DAY
+                        currentDay = selectedDate
+
+                        // fetch DAY theo LocalDate (RPC)
+                        getTodayRecords(
+                            device?.userId ?: return@setOnClickListener,
+                            selectedDate
+                        )
+
+                        currentTab = 0
+                        updateTab(0)
+                        updateScrollTime()
+
+                        binding.barChart.visibility = View.VISIBLE
+                        binding.calendar.visibility = View.GONE
                     }
-
                 }
             }
     }
-
-    private fun LocalDate.toStartOfDayOffset(): OffsetDateTime {
-        return this
-            .atStartOfDay(ZoneId.systemDefault())
-            .toOffsetDateTime()
-    }
-
-    private fun LocalDate.toNextDayStartOffset(): OffsetDateTime {
-        return this
-            .plusDays(1)
-            .atStartOfDay(ZoneId.systemDefault())
-            .toOffsetDateTime()
-    }
-
 
     class DayViewContainer(view: View) : ViewContainer(view) {
         val progressRing: CircularProgressIndicator =
@@ -814,9 +892,7 @@ class HistoryFragment : Fragment() {
     ): Map<LocalDate, List<PostureRecord>> {
 
         return records.groupBy { record ->
-            OffsetDateTime
-                .parse(record.created_at)
-                .toLocalDate()
+            record.createdAtLocal().toLocalDate()
         }
     }
 
@@ -836,29 +912,41 @@ class HistoryFragment : Fragment() {
         val hours = Array(24) { HourStat() }
         if (todayRecords.isEmpty()) return hours
 
+        val MAX_GAP_MS = 60_000L
         val now = OffsetDateTime.now()
 
         for (i in todayRecords.indices) {
 
             val current = todayRecords[i]
 
-            val start = runCatching {
-                OffsetDateTime.parse(current.created_at)
-            }.getOrNull() ?: continue
+            // ---------- confidence filter (GIỐNG summary) ----------
+            val confidence = current.confidence ?: 0.0
+            if (confidence < confidenceThreshold) continue
 
-            val end = if (i == 0) {
+            val start = current.createdAtLocal()
+
+            val rawEnd = if (i == 0) {
                 now
             } else {
-                runCatching {
-                    OffsetDateTime.parse(todayRecords[i - 1].created_at)
-                }.getOrNull() ?: continue
+                todayRecords[i - 1].createdAtLocal()
             }
 
-            if (end.isBefore(start)) continue
+            // ---------- GAP handling ----------
+            val rawDurationMs = Duration
+                .between(start, rawEnd)
+                .toMillis()
+
+            if (rawDurationMs <= 0) continue
+
+            val effectiveEnd =
+                if (rawDurationMs > MAX_GAP_MS)
+                    start.plus(Duration.ofMillis(MAX_GAP_MS))
+                else
+                    rawEnd
 
             var cursor = start
 
-            while (cursor.isBefore(end)) {
+            while (cursor.isBefore(effectiveEnd)) {
 
                 val hour = cursor.hour
 
@@ -869,17 +957,20 @@ class HistoryFragment : Fragment() {
                     .plusHours(1)
 
                 val segmentEnd =
-                    if (nextHour.isBefore(end)) nextHour else end
+                    if (nextHour.isBefore(effectiveEnd)) nextHour else effectiveEnd
 
                 val durationMs = Duration
                     .between(cursor, segmentEnd)
                     .toMillis()
+
+                if (durationMs <= 0) break
 
                 hours[hour].totalMs += durationMs
 
                 when (current.posture_type.lowercase()) {
                     "good" -> hours[hour].goodMs += durationMs
                     "bad" -> hours[hour].badMs += durationMs
+                    else -> { /* ignore */ }
                 }
 
                 cursor = segmentEnd
@@ -889,164 +980,160 @@ class HistoryFragment : Fragment() {
         return hours
     }
 
-
-    private fun setUpBarChart(records: List<PostureRecord>, isDay: Boolean) {
-
+    private fun setUpBarChart(
+        records: List<PostureRecord>,
+        isDay: Boolean
+    ) {
         val barChart = binding.barChart
 
-        barChart.clear()
-        barChart.data = null
-        barChart.highlightValues(null)
-        barChart.xAxis.resetAxisMinimum()
-        barChart.xAxis.resetAxisMaximum()
-        barChart.notifyDataSetChanged()
-
+        // ===== BASIC CONFIG (chỉ set 1 lần mỗi lần update) =====
         barChart.apply {
             description.isEnabled = false
             legend.isEnabled = false
-            setTouchEnabled(false)
             setScaleEnabled(false)
+            axisRight.isEnabled = false
         }
 
         if (isDay) {
-            val hourlyPercents = calculateHourlyStats(todayRecords).map {
-                if (it.totalMs == 0L) 0f
-                else it.goodMs * 100f / it.totalMs
-            }
-
-            val entries = hourlyPercents.mapIndexed { hour, percent ->
-                BarEntry(hour.toFloat(), percent)
-            }
-
-            val dataSet = BarDataSet(entries, "").apply {
-                color = requireContext().getColor(R.color.purple)
-                setDrawValues(false)
-                highLightAlpha = 120
-                highLightColor =
-                    ContextCompat.getColor(requireContext(), R.color.purple)
-            }
-
-            barChart.data = BarData(dataSet).apply {
-                barWidth = 0.8f
-            }
-
-            // ===== X AXIS DAY (0 → 23) =====
-            barChart.xAxis.apply {
-                position = XAxis.XAxisPosition.BOTTOM
-                axisMinimum = -0.5f
-                axisMaximum = 23.5f
-                granularity = 1f
-                setLabelCount(8, false)
-                setDrawGridLines(false)
-                setDrawAxisLine(false)
-                setAvoidFirstLastClipping(true)
-
-                valueFormatter = object : ValueFormatter() {
-                    override fun getFormattedValue(value: Float): String {
-                        return when (value.toInt()) {
-                            0, 3, 6, 9, 12, 15, 18, 21 -> value.toInt().toString()
-                            else -> ""
-                        }
-                    }
-                }
-                textColor =
-                    requireContext().getColor(R.color.dark_blue)
-                textSize = 12f
-            }
-
-            // ===== Y AXIS =====
-            barChart.axisLeft.apply {
-                axisMinimum = 0f
-                axisMaximum = 100f
-                granularity = 25f
-                setDrawGridLines(true)
-                textColor =
-                    requireContext().getColor(R.color.dark_blue)
-            }
-
-            barChart.axisRight.isEnabled = false
-
-            barChart.animateY(600)
-
+            setupDayChart(barChart, records)
         } else {
-            val recordsByDay = groupRecordsByDate(records)
-            val dailyPercents = calculateDailyGoodPercent(recordsByDay)
-
-            val entries = dailyPercents.mapIndexed { index, pair ->
-                BarEntry(index.toFloat(), pair.second)
-            }
-
-            val todayIndex =
-                LocalDate.now().dayOfWeek.value - 1 // MON = 0
-
-            val dataSet = BarDataSet(entries, "").apply {
-                colors = entries.mapIndexed { index, _ ->
-                    if (index == todayIndex)
-                        requireContext().getColor(R.color.purple)
-                    else
-                        requireContext().getColor(R.color.dark_blue)
-                }
-                setDrawValues(false)
-            }
-
-            barChart.data = BarData(dataSet).apply {
-                barWidth = 0.6f
-            }
-
-            // ===== X AXIS WEEK (MON → SUN) =====
-            barChart.xAxis.apply {
-                position = XAxis.XAxisPosition.BOTTOM
-
-                axisMinimum = -0.5f
-                axisMaximum = 6.5f
-                granularity = 1f
-
-                setCenterAxisLabels(true)
-                setAvoidFirstLastClipping(true)
-                setDrawGridLines(false)
-                setDrawAxisLine(false)
-
-                textSize = 12f
-                textColor = requireContext().getColor(R.color.dark_blue)
-
-                valueFormatter = object : ValueFormatter() {
-                    override fun getFormattedValue(value: Float): String {
-                        if (value % 1f != 0f) return ""
-                        return when (value.toInt()) {
-                            0 -> "MON"
-                            1 -> "TUE"
-                            2 -> "WED"
-                            3 -> "THU"
-                            4 -> "FRI"
-                            5 -> "SAT"
-                            6 -> "SUN"
-                            else -> ""
-                        }
-                    }
-                }
-            }
-
-            // ===== Y AXIS =====
-            barChart.axisLeft.apply {
-                axisMinimum = 0f
-                axisMaximum = 100f
-                granularity = 25f
-                setDrawGridLines(true)
-                textColor =
-                    requireContext().getColor(R.color.dark_blue)
-            }
-            barChart.axisRight.isEnabled = false
-            barChart.setExtraOffsets(
-                -8f,  // left  (dịch trái)
-                0f,   // top
-                0f,   // right
-                0f    // bottom
-            )
-            barChart.animateY(800, Easing.EaseInOutQuad)
+            setupWeekChart(barChart, records)
         }
 
+        barChart.data?.notifyDataChanged()
+        barChart.notifyDataSetChanged()
         barChart.invalidate()
     }
+
+    private fun setupDayChart(
+        barChart: BarChart,
+        records: List<PostureRecord>
+    ) {
+        val hourlyPercents = calculateHourlyStats(records).map {
+            if (it.totalMs == 0L) 0f
+            else it.goodMs * 100f / it.totalMs
+        }
+
+        val entries = hourlyPercents.mapIndexed { hour, percent ->
+            BarEntry(hour.toFloat(), percent)
+        }
+
+        val dataSet = BarDataSet(
+            entries,
+            "DAY_${System.currentTimeMillis()}" // 🔑 bắt chart rebuild
+        ).apply {
+            color = requireContext().getColor(R.color.purple)
+            setDrawValues(false)
+        }
+
+        barChart.data = BarData(dataSet).apply {
+            barWidth = 0.8f
+        }
+
+        // ===== X AXIS =====
+        barChart.xAxis.apply {
+            position = XAxis.XAxisPosition.BOTTOM
+            axisMinimum = -0.5f
+            axisMaximum = 23.5f
+            granularity = 1f
+            setLabelCount(8, false)
+            setDrawGridLines(false)
+            setDrawAxisLine(false)
+            setAvoidFirstLastClipping(true)
+            textColor = requireContext().getColor(R.color.dark_blue)
+            textSize = 12f
+
+            valueFormatter = object : ValueFormatter() {
+                override fun getFormattedValue(value: Float): String {
+                    return when (value.toInt()) {
+                        0, 3, 6, 9, 12, 15, 18, 21 -> value.toInt().toString()
+                        else -> ""
+                    }
+                }
+            }
+        }
+
+        // ===== Y AXIS =====
+        barChart.axisLeft.apply {
+            axisMinimum = 0f
+            axisMaximum = 100f
+            granularity = 25f
+            setDrawGridLines(true)
+            textColor = requireContext().getColor(R.color.dark_blue)
+        }
+
+        barChart.animateY(500)
+    }
+
+    private fun setupWeekChart(
+        barChart: BarChart,
+        records: List<PostureRecord>
+    ) {
+        val recordsByDay = groupRecordsByDate(records)
+        val dailyPercents = calculateDailyGoodPercent(recordsByDay)
+
+        val entries = dailyPercents.mapIndexed { index, pair ->
+            BarEntry(index.toFloat(), pair.second)
+        }
+
+        val today = LocalDate.now()
+        val todayIndex = dailyPercents.indexOfFirst { it.first == today }
+
+        val dataSet = BarDataSet(
+            entries,
+            "WEEK_${System.currentTimeMillis()}" // 🔑 bắt chart rebuild
+        ).apply {
+            colors = entries.mapIndexed { i, _ ->
+                if (i == todayIndex)
+                    requireContext().getColor(R.color.purple)
+                else
+                    requireContext().getColor(R.color.dark_blue)
+            }
+            setDrawValues(false)
+        }
+
+        barChart.data = BarData(dataSet).apply {
+            barWidth = 0.6f
+        }
+
+        val labels = dailyPercents.map { (date, _) ->
+            date.dayOfWeek.name.take(3) // MON, TUE, ...
+        }
+
+        // ===== X AXIS =====
+        barChart.xAxis.apply {
+            position = XAxis.XAxisPosition.BOTTOM
+            axisMinimum = -0.5f
+            axisMaximum = 6.5f
+            granularity = 1f
+            setCenterAxisLabels(true)
+            setAvoidFirstLastClipping(true)
+            setDrawGridLines(false)
+            setDrawAxisLine(false)
+            textSize = 12f
+            textColor = requireContext().getColor(R.color.dark_blue)
+
+            valueFormatter = object : ValueFormatter() {
+                override fun getFormattedValue(value: Float): String {
+                    val index = value.toInt()
+                    return labels.getOrNull(index) ?: ""
+                }
+            }
+        }
+
+        // ===== Y AXIS =====
+        barChart.axisLeft.apply {
+            axisMinimum = 0f
+            axisMaximum = 100f
+            granularity = 25f
+            setDrawGridLines(true)
+            textColor = requireContext().getColor(R.color.dark_blue)
+        }
+
+        barChart.setExtraOffsets(-8f, 0f, 0f, 0f)
+        barChart.animateY(700, Easing.EaseInOutQuad)
+    }
+
 
     private fun calculateDailyGoodPercent(
         recordsByDay: Map<LocalDate, List<PostureRecord>>
@@ -1075,6 +1162,8 @@ class HistoryFragment : Fragment() {
             return PostureDuration(0, 0, 0)
         }
 
+        val MAX_GAP_MS = 60_000L
+
         var good = 0L
         var bad = 0L
         var other = 0L
@@ -1090,14 +1179,13 @@ class HistoryFragment : Fragment() {
 
         if (firstTime != null && (first.confidence ?: 0.0) >= confidenceThreshold) {
 
-            val firstDuration = Duration
-                .between(firstTime, now)
-                .toMillis()
+            val raw = Duration.between(firstTime, now).toMillis()
+            val duration = min(raw, MAX_GAP_MS)
 
             when (first.posture_type.lowercase()) {
-                "good" -> good += firstDuration
-                "bad" -> bad += firstDuration
-                else -> other += firstDuration
+                "good" -> good += duration
+                "bad" -> bad += duration
+                else -> other += duration
             }
         }
 
@@ -1120,14 +1208,16 @@ class HistoryFragment : Fragment() {
 
             if (currentTime == null || nextTime == null) continue
 
-            val duration = Duration
+            val raw = Duration
                 .between(nextTime, currentTime)
                 .toMillis()
 
+            if (raw > MAX_GAP_MS) continue
+
             when (current.posture_type.lowercase()) {
-                "good" -> good += duration
-                "bad" -> bad += duration
-                else -> other += duration
+                "good" -> good += raw
+                "bad" -> bad += raw
+                else -> other += raw
             }
         }
 

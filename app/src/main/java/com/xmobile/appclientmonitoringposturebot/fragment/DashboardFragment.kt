@@ -39,6 +39,7 @@ import java.time.LocalDate
 import java.time.OffsetDateTime
 import kotlin.math.min
 import androidx.core.content.edit
+import com.xmobile.appclientmonitoringposturebot.util.ConvertTimeZone.createdAtLocal
 import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
@@ -95,17 +96,21 @@ class DashboardFragment : Fragment() {
         )
     }
 
-    private fun getWeekRecords(userId: String){
-        val fromTime = OffsetDateTime.now().minusDays(7)
-        val toTime = OffsetDateTime.now()
+    private fun getWeekRecords(userId: String) {
+
+        val days = getLast7Days()
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                weekRecords = StatisticPosetureRecord.getPostureRecordsByTimeRange(userId, fromTime, toTime)
+                weekRecords =
+                    StatisticPosetureRecord
+                        .getRecordsByLocalDates(userId, days)
+
                 setUpBarChartWeek(weekRecords)
                 updateStreak(weekRecords)
-            }catch (e: Exception) {
-                Log.e("getDevices", e.message ?: "Unknown error")
+
+            } catch (e: Exception) {
+                Log.e("getWeekRecords", e.message ?: "Unknown error")
             }
         }
     }
@@ -129,19 +134,24 @@ class DashboardFragment : Fragment() {
     }
 
     private fun getTodayRecords(userId: String) {
-        val fromTime = OffsetDateTime.now().minusDays(1)
-        val toTime = OffsetDateTime.now()
+
+        val today = LocalDate.now()
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                todayRecords = StatisticPosetureRecord.getPostureRecordsByTimeRange(userId, fromTime, toTime)
+                todayRecords =
+                    StatisticPosetureRecord
+                        .getRecordsByLocalDate(userId, today)
+                Log.e("getTodayRecords", todayRecords.toString())
                 setUpPieChartScore(todayRecords)
                 setUpGoalStreak(todayRecords)
-            }catch (e: Exception) {
-                Log.e("getDevices", e.message ?: "Unknown error")
+
+            } catch (e: Exception) {
+                Log.e("getTodayRecords", e.message ?: "Unknown error")
             }
         }
     }
+
 
     private fun setUpGoalStreak(todayRecords: List<PostureRecord>) {
         val duration = calculatePostureDurationDesc(todayRecords)
@@ -157,9 +167,8 @@ class DashboardFragment : Fragment() {
 
         binding.txtCurrentDuration.text = formatDuration(duration.goodMs)
         binding.txtGoalDuration.text = goalDuration
-
-        val todayPercent = calculateGoodPercentForDay(todayRecords)
-        binding.txtGoalPercent.text = "${todayPercent.toInt()}%"
+        binding.txtGoalPercent.text =
+            "${((duration.goodMs * 100f) / goalMs).toInt()}%"
 
         val progressRatio = min(
             duration.goodMs.toFloat() / goalMs,
@@ -210,9 +219,7 @@ class DashboardFragment : Fragment() {
         }
 
         val yesterdayRecords = weekRecords.filter { record ->
-            runCatching {
-                OffsetDateTime.parse(record.created_at).toLocalDate()
-            }.getOrNull() == yesterday
+            record.createdAtLocal().toLocalDate() == yesterday
         }
 
         if (yesterdayRecords.isEmpty()) {
@@ -258,13 +265,16 @@ class DashboardFragment : Fragment() {
 
         val recordsByDay = groupRecordsByDay(weekRecords)
         val dailyPercents = calculateDailyGoodPercent(recordsByDay)
+        Log.e("dailyPercents", dailyPercents.toString())
+
 
         // ===== Bar entries =====
         val entries = dailyPercents.mapIndexed { index, pair ->
             BarEntry(index.toFloat(), pair.second)
         }
 
-        val todayIndex = LocalDate.now().dayOfWeek.value - 1 // MON = 0
+        val today = LocalDate.now()
+        val todayIndex = dailyPercents.indexOfFirst { it.first == today }
 
         val dataSet = BarDataSet(entries, "").apply {
             colors = entries.mapIndexed { index, _ ->
@@ -290,8 +300,9 @@ class DashboardFragment : Fragment() {
             animateY(800, Easing.EaseInOutQuad)
         }
 
-        // ===== X Axis (MON → SUN, highlight today) =====
-        val labels = listOf("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
+        val labels = dailyPercents.map { (date, _) ->
+            date.dayOfWeek.name.take(3) // MON, TUE, ...
+        }
 
         barChart.xAxis.apply {
             position = XAxis.XAxisPosition.BOTTOM
@@ -303,8 +314,7 @@ class DashboardFragment : Fragment() {
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
                     val index = value.toInt()
-                    if (index !in labels.indices) return ""
-                    return labels[index]
+                    return labels.getOrNull(index) ?: ""
                 }
             }
 
@@ -329,9 +339,7 @@ class DashboardFragment : Fragment() {
         records: List<PostureRecord>
     ): Map<LocalDate, List<PostureRecord>> {
         return records.groupBy { record ->
-            OffsetDateTime
-                .parse(record.created_at)
-                .toLocalDate()
+            record.createdAtLocal().toLocalDate()
         }
     }
 
@@ -411,9 +419,7 @@ class DashboardFragment : Fragment() {
         val yesterday = today.minusDays(1)
 
         val todayRecords = records.filter { record ->
-            runCatching {
-                OffsetDateTime.parse(record.created_at).toLocalDate()
-            }.getOrNull() == today
+            record.createdAtLocal().toLocalDate() == today
         }
 
         val yesterdayRecords = records.filter { record ->
@@ -427,11 +433,16 @@ class DashboardFragment : Fragment() {
 
     private fun setUpPieChartScore(todayRecords: List<PostureRecord>) {
         val duration = calculatePostureDurationDesc(todayRecords)
+        Log.e("duration", duration.toString())
         val goodPercent = calculateGoodPercentage(duration)
 
         val pieChart = binding.pieChartScore
         binding.txtGoodDuration.text = formatDuration(duration.goodMs)
+        binding.txtWarningDuration.text = formatDuration(duration.otherMs)
         binding.txtBadDuration.text = formatDuration(duration.badMs)
+
+        Log.e("goodDuration", duration.goodMs.toString())
+        Log.e("totalDuration", (duration.goodMs + duration.badMs + duration.otherMs).toString())
 
         pieChart.apply {
             description.isEnabled = false
@@ -488,6 +499,8 @@ class DashboardFragment : Fragment() {
             return PostureDuration(0, 0, 0)
         }
 
+        val MAX_GAP_MS = 60_000L
+
         var good = 0L
         var bad = 0L
         var other = 0L
@@ -503,14 +516,13 @@ class DashboardFragment : Fragment() {
 
         if (firstTime != null && (first.confidence ?: 0.0) >= confidenceThreshold) {
 
-            val firstDuration = Duration
-                .between(firstTime, now)
-                .toMillis()
+            val raw = Duration.between(firstTime, now).toMillis()
+            val duration = min(raw, MAX_GAP_MS)
 
             when (first.posture_type.lowercase()) {
-                "good" -> good += firstDuration
-                "bad" -> bad += firstDuration
-                else -> other += firstDuration
+                "good" -> good += duration
+                "bad" -> bad += duration
+                else -> other += duration
             }
         }
 
@@ -533,14 +545,16 @@ class DashboardFragment : Fragment() {
 
             if (currentTime == null || nextTime == null) continue
 
-            val duration = Duration
+            val raw = Duration
                 .between(nextTime, currentTime)
                 .toMillis()
 
+            if (raw > MAX_GAP_MS) continue
+
             when (current.posture_type.lowercase()) {
-                "good" -> good += duration
-                "bad" -> bad += duration
-                else -> other += duration
+                "good" -> good += raw
+                "bad" -> bad += raw
+                else -> other += raw
             }
         }
 
@@ -555,11 +569,11 @@ class DashboardFragment : Fragment() {
 
     private fun formatDuration(ms: Long): String {
         if (ms <= 0) return "0h0m"
-
+        Log.e("time", "$ms")
         val totalMinutes = ms / 1000 / 60
         val hours = totalMinutes / 60
         val minutes = totalMinutes % 60
-
+        Log.e("time", "${hours}h${minutes}m")
         return "${hours}h${minutes}m"
     }
 
