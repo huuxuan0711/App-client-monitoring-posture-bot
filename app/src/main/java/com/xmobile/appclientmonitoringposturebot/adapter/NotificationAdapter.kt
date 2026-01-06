@@ -12,7 +12,11 @@ import com.xmobile.appclientmonitoringposturebot.helper.NotificationUiMapper
 import com.xmobile.appclientmonitoringposturebot.model.Notification
 import com.xmobile.appclientmonitoringposturebot.model.NotificationLevel
 import com.xmobile.appclientmonitoringposturebot.model.NotificationUiItem
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 class NotificationAdapter(
@@ -55,8 +59,8 @@ class NotificationAdapter(
     fun filterByType(type: NotificationLevel?) {
         val filtered = if (type != null) {
             notifications.filter { noti ->
-                noti.meta
-                    ?.get("level")
+                noti.meta?.jsonObject
+                    ?.get("level")?.jsonPrimitive?.content
                     ?.let { NotificationLevel.valueOf(it) } == type
             }
         } else {
@@ -94,8 +98,8 @@ class NotificationAdapter(
                 holder.txtBody.text = notification.body
                 holder.txtTime.text = formatNotificationTime(notification.created_at)
 
-                val level = notification.meta
-                    ?.get("level")
+                val level = notification.meta?.jsonObject
+                    ?.get("level")?.jsonPrimitive?.content
                     ?.let { runCatching { NotificationLevel.valueOf(it) }.getOrNull() }
 
                 holder.indicator.backgroundTintList = when (level) {
@@ -124,28 +128,31 @@ class NotificationAdapter(
         }
     }
 
-    // -------------------- Utils --------------------
     private fun formatNotificationTime(createdAt: String?): String {
         if (createdAt.isNullOrBlank()) return ""
 
-        val parsed = runCatching { OffsetDateTime.parse(createdAt) }.getOrNull()
-            ?: return ""
+        val zonedTime = runCatching {
+            OffsetDateTime.parse(createdAt)
+                .atZoneSameInstant(ZoneId.systemDefault())
+        }.getOrNull() ?: return ""
 
-        val now = OffsetDateTime.now(parsed.offset)
-        val date = parsed.toLocalDate()
+        val now = ZonedDateTime.now(ZoneId.systemDefault())
+
+        val date = zonedTime.toLocalDate()
         val today = now.toLocalDate()
 
         return when {
             date == today || date == today.minusDays(1) ->
-                parsed.format(DateTimeFormatter.ofPattern("HH:mm"))
+                zonedTime.format(DateTimeFormatter.ofPattern("HH:mm"))
 
             date.isAfter(today.minusDays(7)) ->
-                parsed.format(DateTimeFormatter.ofPattern("dd/MM"))
+                zonedTime.format(DateTimeFormatter.ofPattern("dd/MM"))
 
             else ->
-                parsed.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                zonedTime.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
         }
     }
+
 
     // -------------------- ViewHolder --------------------
     inner class NotificationViewHolder(itemView: View) :

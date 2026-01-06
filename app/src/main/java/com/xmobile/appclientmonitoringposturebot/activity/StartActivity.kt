@@ -1,9 +1,14 @@
 package com.xmobile.appclientmonitoringposturebot.activity
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.xmobile.appclientmonitoringposturebot.R
@@ -11,6 +16,10 @@ import com.xmobile.appclientmonitoringposturebot.databinding.ActivityStartBindin
 
 class StartActivity : AppCompatActivity() {
     private lateinit var binding: ActivityStartBinding
+
+    private val requestNotificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,4 +52,21 @@ class StartActivity : AppCompatActivity() {
             startActivity(Intent(this, RegisterActivity::class.java))
         }
     }
+
+    private fun askNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+
+        val permission = Manifest.permission.POST_NOTIFICATIONS
+        if (ContextCompat.checkSelfPermission(this, permission)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestNotificationPermission.launch(permission)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        askNotificationPermissionIfNeeded()
+    }
+
 }

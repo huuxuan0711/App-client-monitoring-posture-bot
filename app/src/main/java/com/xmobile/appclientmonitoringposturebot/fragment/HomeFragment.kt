@@ -66,6 +66,9 @@ class HomeFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
+        binding.swipeRefresh.setOnRefreshListener {
+            init()
+        }
         init()
         return binding.root
     }
@@ -78,6 +81,7 @@ class HomeFragment : Fragment() {
     }
 
     private fun init() {
+        binding.swipeRefresh.isRefreshing = false
         initUserInfo()
         initDeviceInfo()
 
@@ -196,27 +200,24 @@ class HomeFragment : Fragment() {
     }
 
     private fun listenPostureRealtime() {
-        val channel = supabase.realtime.channel("posture-records-$userId")
+        val channel = supabase.realtime.channel("posture-records")
 
         postureRealtimeJob?.cancel()
         postureRealtimeJob = viewLifecycleOwner.lifecycleScope.launch {
-            channel.subscribe()
-
-            channel.postgresChangeFlow<PostgresAction>("public") {
-                table = "posture_records"
-            }.collect { action ->
-                val record = (action as? PostgresAction.Insert)?.record ?: return@collect
-                Log.e("record", record.toString())
-                val recordUserId =
-                    record["user_id"]?.jsonPrimitive?.content ?: return@collect
-
-                if (recordUserId == userId) {
-                    binding.cardStatusPosture3.visibility = View.VISIBLE
-                    binding.pieChart.visibility = View.VISIBLE
-                    binding.txtNullData.visibility = View.GONE
+            channel
+                .postgresChangeFlow<PostgresAction>("public") {
+                    table = "posture_records"
+                    filter = "user_id=eq.$userId"
+                }
+                .collect { action ->
+                    val record = (action as? PostgresAction.Insert)?.record ?: return@collect
+                    Log.e("REALTIME", record.toString())
                     renderPosture(record)
                 }
-            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            channel.subscribe()
         }
     }
 

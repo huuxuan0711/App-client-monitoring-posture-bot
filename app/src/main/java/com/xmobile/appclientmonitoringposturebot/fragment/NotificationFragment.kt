@@ -117,7 +117,7 @@ class NotificationFragment : Fragment() {
                         )
                     }
                     .decodeList<Notification>()
-
+                Log.e("getNotification", notificationList.toString())
                 setUpNotificationList(notificationList)
 
             } catch (e: Exception) {

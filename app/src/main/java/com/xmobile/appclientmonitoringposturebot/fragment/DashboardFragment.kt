@@ -69,11 +69,21 @@ class DashboardFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         _binding = FragmentDashboardBinding.inflate(inflater, container, false)
+
+        binding.swipeRefresh.setOnRefreshListener {
+            initControl()
+        }
+
         initControl()
         return binding.root
     }
 
     private fun initControl() {
+        binding.swipeRefresh.isRefreshing = false
+        binding.nestedScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+            binding.swipeRefresh.isEnabled = scrollY == 0
+        }
+
         userId = device?.userId ?: return
         listenRecord(userId)
         getTodayRecords(userId)

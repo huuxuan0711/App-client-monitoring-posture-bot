@@ -1,6 +1,7 @@
 package com.xmobile.appclientmonitoringposturebot.model
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class Notification(
@@ -10,5 +11,5 @@ data class Notification(
     val body: String,
     val type: String,
     val created_at: String,
-    val meta: Map<String, String>? = null
+    val meta: JsonElement? = null
 )
