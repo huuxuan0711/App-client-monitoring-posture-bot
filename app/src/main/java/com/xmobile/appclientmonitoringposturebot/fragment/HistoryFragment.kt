@@ -189,7 +189,7 @@ class HistoryFragment : Fragment() {
                 ) {
                     if (e == null) return
 
-                    // ================= WEEK → CLICK 1 NGÀY =================
+                    // WEEK → CLICK 1 NGÀY
                     if (currentTab == 1) {
 
                         val dayIndex = e.x.toInt()
@@ -211,7 +211,6 @@ class HistoryFragment : Fragment() {
                             selectedDate
                         )
 
-                        currentTab = 0
                         updateTab(0)
                         updateScrollTime()
 
@@ -222,7 +221,7 @@ class HistoryFragment : Fragment() {
                         return
                     }
 
-                    // ================= DAY → CLICK 1 GIỜ =================
+                    // DAY → CLICK 1 GIỜ
                     if (currentTab == 0) {
 
                         if (h == null) return
@@ -263,7 +262,7 @@ class HistoryFragment : Fragment() {
 
         when (currentTab) {
 
-            // ================= DAY =================
+            // DAY
             0 -> {
                 when (currentDay) {
                     today -> {
@@ -285,7 +284,7 @@ class HistoryFragment : Fragment() {
                 }
             }
 
-            // ================= WEEK =================
+            // WEEK
             1 -> {
                 val thisWeekStart = today.minusDays(6)
 
@@ -308,7 +307,7 @@ class HistoryFragment : Fragment() {
                 }
             }
 
-            // ================= MONTH =================
+            // MONTH
             2 -> {
                 val thisMonth = YearMonth.now()
 
@@ -430,12 +429,12 @@ class HistoryFragment : Fragment() {
         currentMonth: YearMonth,
         currentMonthRecords: List<PostureRecord>
     ) {
-        // ===== Tổng thời gian =====
+        // Tổng thời gian
         val duration = calculatePostureDurationDesc(currentMonthRecords)
         binding.txtTotalGoodDuration.text = formatDuration(duration.goodMs)
         binding.txtTotalBadDuration.text = formatDuration(duration.badMs)
 
-        // ===== Tuần tốt nhất =====
+        // Tuần tốt nhất
         val bestWeek = calculateBestWeek(currentMonthRecords)
         bestWeek?.let { weekKey ->
             val (start, end) = getIsoWeekRange(weekKey)
@@ -446,7 +445,7 @@ class HistoryFragment : Fragment() {
             binding.txtBestWeek.text = "--"
         }
 
-        // ===== So sánh với tháng trước =====
+        // So sánh với tháng trước
         val lastMonth = currentMonth.minusMonths(1)
 
         val lastMonthDays =
@@ -492,11 +491,12 @@ class HistoryFragment : Fragment() {
 
         val currentPercent = calculateMonthGoodPercent(currentMonthRecords)
         val lastPercent = calculateMonthGoodPercent(lastMonthRecords)
+        Log.e("currentPercent", currentPercent.toString())
+        Log.e("lastPercent", lastPercent.toString())
 
         if (lastPercent == 0f) return null
 
-        val diff = ((currentPercent - lastPercent) / lastPercent * 100)
-            .toInt()
+        val diff = (currentPercent - lastPercent).toInt()
 
         return MonthTrend(
             diffPercent = kotlin.math.abs(diff),
@@ -512,7 +512,6 @@ class HistoryFragment : Fragment() {
 
         val recordsByDay = groupRecordsByDate(monthRecords)
         val dailyPercents = calculateDailyGoodPercent(recordsByDay)
-        // List<Pair<LocalDate, Float>>
 
         if (dailyPercents.isEmpty()) return 0f
 
@@ -544,7 +543,6 @@ class HistoryFragment : Fragment() {
 
         val recordsByDay = groupRecordsByDate(weekRecords)
         val dailyPercents = calculateDailyGoodPercent(recordsByDay)
-        // List<Pair<LocalDate, Float>>
 
         if (dailyPercents.isEmpty()) return 0f
 
@@ -569,7 +567,7 @@ class HistoryFragment : Fragment() {
 
         val weekFields = WeekFields.ISO
 
-        // Lấy ngày bất kỳ trong tuần đó (ISO: tuần 1 luôn chứa ngày 4/1)
+        // Lấy ngày bất kỳ trong tuần đó
         val startOfWeek = LocalDate
             .of(weekKey.year, 1, 4)
             .with(weekFields.weekOfWeekBasedYear(), weekKey.week.toLong())
@@ -625,7 +623,7 @@ class HistoryFragment : Fragment() {
         var goodMs = 0L
         val now = OffsetDateTime.now()
 
-        // ---------- record mới nhất → hiện tại ----------
+        // record mới nhất → hiện tại
         val first = records.first()
         val firstTime = first.createdAtLocal()
 
@@ -637,7 +635,7 @@ class HistoryFragment : Fragment() {
             if (duration > 0) goodMs += duration
         }
 
-        // ---------- record → record ----------
+        // record → record
         for (i in 0 until records.lastIndex) {
 
             val current = records[i]
@@ -729,8 +727,6 @@ class HistoryFragment : Fragment() {
 
         repeat(totalSegments) { index ->
             val segmentStart = index * totalMinutes / totalSegments
-            val segmentEnd = (index + 1) * totalMinutes / totalSegments
-
             val goodUntil = goodMinutes
 
             segments.add(
@@ -787,7 +783,7 @@ class HistoryFragment : Fragment() {
         val displayMonth: YearMonth = currentMonth
         val today = LocalDate.now()
 
-        // ===== Setup calendar =====
+        // Setup calendar
         calendarView.setup(
             displayMonth,
             displayMonth,
@@ -795,7 +791,7 @@ class HistoryFragment : Fragment() {
         )
         calendarView.scrollToMonth(displayMonth)
 
-        // ===== Day binder =====
+        // Day binder
         calendarView.dayBinder =
             object : MonthDayBinder<DayViewContainer> {
                 override fun create(view: View) =
@@ -817,13 +813,13 @@ class HistoryFragment : Fragment() {
                     }
 
                     if (dayRecords.isNullOrEmpty()) {
-                        // ---- No data ----
+                        // No data
                         container.progressRing.progress = 0
                         container.progressRing.setIndicatorColor(
                             requireContext().getColor(R.color.gray)
                         )
                     } else {
-                        // ---- Has data ----
+                        // Has data
                         val percent =
                             calculateGoodPercentForDay(dayRecords)
                                 .toInt()
@@ -846,7 +842,7 @@ class HistoryFragment : Fragment() {
                         container.txtDay.alpha = 1f
                     }
 
-                    // ---- Highlight today ----
+                    // Highlight today
                     if (date == today) {
                         container.txtDay.setTextColor(
                             requireContext().getColor(R.color.purple)
@@ -857,7 +853,7 @@ class HistoryFragment : Fragment() {
                         )
                     }
 
-                    // ---- Click day ----
+                    // Click day
                     container.view.setOnClickListener {
                         if (dayRecords.isNullOrEmpty()) return@setOnClickListener
 
@@ -878,6 +874,7 @@ class HistoryFragment : Fragment() {
 
                         binding.barChart.visibility = View.VISIBLE
                         binding.calendar.visibility = View.GONE
+                        binding.layoutSummaryMonth.visibility = View.GONE
                     }
                 }
             }
@@ -908,78 +905,117 @@ class HistoryFragment : Fragment() {
         return calculateGoodPercentage(duration)
     }
 
+    /**
+     * Tính toán thống kê tư thế theo từng giờ trong ngày (0–23).
+     *
+     * Thuật toán này chuyển dữ liệu posture rời rạc theo thời gian
+     * thành phân bố thời lượng GOOD / BAD theo từng giờ.
+     *
+     * Nguyên tắc chính:
+     * - Không đếm số record, mà ước lượng thời gian giữ tư thế.
+     * - Có lọc nhiễu bằng confidence.
+     * - Có xử lý khoảng trống dữ liệu (gap) để tránh suy diễn sai.
+     * - Phân bổ thời gian chính xác theo ranh giới từng giờ.
+     */
     private fun calculateHourlyStats(
         todayRecords: List<PostureRecord>
     ): Array<HourStat> {
 
+        // Khởi tạo mảng 24 phần tử, mỗi phần tử đại diện cho 1 giờ trong ngày
         val hours = Array(24) { HourStat() }
+
+        // Nếu không có dữ liệu trong ngày, trả về thống kê rỗng (0 ms cho mọi giờ)
         if (todayRecords.isEmpty()) return hours
 
+        // Khoảng thời gian tối đa cho phép suy diễn giữa hai record liên tiếp
+        // nhằm tránh ảnh hưởng khi dữ liệu bị ngắt (camera tắt, app nền, v.v.)
         val MAX_GAP_MS = 60_000L
+
+        // Thời điểm hiện tại, dùng cho record mới nhất
         val now = OffsetDateTime.now()
 
+        // Duyệt qua các record trong ngày (đã được sort theo thời gian giảm dần)
         for (i in todayRecords.indices) {
 
             val current = todayRecords[i]
 
-            // ---------- confidence filter (GIỐNG summary) ----------
+            // Lọc nhiễu: bỏ qua record có độ tin cậy thấp
             val confidence = current.confidence ?: 0.0
             if (confidence < confidenceThreshold) continue
 
+            // Thời điểm bắt đầu mà record hiện tại đại diện
             val start = current.createdAtLocal()
 
+            // Thời điểm kết thúc thô:
+            // - Với record mới nhất: kéo đến hiện tại (now)
+            // - Với record khác: kéo đến record trước đó
             val rawEnd = if (i == 0) {
                 now
             } else {
                 todayRecords[i - 1].createdAtLocal()
             }
 
-            // ---------- GAP handling ----------
+            // Tính khoảng thời gian thô giữa hai record
             val rawDurationMs = Duration
                 .between(start, rawEnd)
                 .toMillis()
 
+            // Bỏ qua nếu khoảng thời gian không hợp lệ
             if (rawDurationMs <= 0) continue
 
+            // Giới hạn thời gian suy diễn để tránh ảnh hưởng bởi khoảng trống dữ liệu:
+            // - Nếu gap quá lớn, chỉ tính tối đa MAX_GAP_MS
+            // - Ngược lại, dùng rawEnd làm mốc kết thúc
             val effectiveEnd =
                 if (rawDurationMs > MAX_GAP_MS)
                     start.plus(Duration.ofMillis(MAX_GAP_MS))
                 else
                     rawEnd
 
+            // Con trỏ thời gian dùng để phân bổ duration theo từng giờ
             var cursor = start
 
+            // Phân chia khoảng [start → effectiveEnd] thành các đoạn theo ranh giới giờ
             while (cursor.isBefore(effectiveEnd)) {
 
+                // Xác định giờ hiện tại (0–23)
                 val hour = cursor.hour
 
+                // Mốc bắt đầu của giờ kế tiếp (đầu giờ tiếp theo), mặc cho duration tối đa 60s
                 val nextHour = cursor
                     .withMinute(0)
                     .withSecond(0)
                     .withNano(0)
                     .plusHours(1)
 
+                // Cắt đoạn thời gian tại ranh giới giờ hoặc tại effectiveEnd
+                // (tuỳ mốc nào đến trước)
                 val segmentEnd =
                     if (nextHour.isBefore(effectiveEnd)) nextHour else effectiveEnd
 
+                // Thời lượng thực tế của đoạn trong giờ hiện tại
                 val durationMs = Duration
                     .between(cursor, segmentEnd)
                     .toMillis()
 
                 if (durationMs <= 0) break
 
+                // Cộng dồn tổng thời gian cho giờ tương ứng
                 hours[hour].totalMs += durationMs
 
+                // Cộng dồn thời gian GOOD / BAD theo tư thế hiện tại
                 when (current.posture_type.lowercase()) {
                     "good" -> hours[hour].goodMs += durationMs
                     "bad" -> hours[hour].badMs += durationMs
-                    else -> { /* ignore */ }
+                    else -> hours[hour].badMs += durationMs
                 }
 
+                // Di chuyển con trỏ sang đoạn tiếp theo
                 cursor = segmentEnd
             }
         }
 
+        // Trả về thống kê theo từng giờ trong ngày
         return hours
     }
 
@@ -1249,11 +1285,6 @@ class HistoryFragment : Fragment() {
         val total = duration.goodMs + duration.badMs + duration.otherMs
         if (total == 0L) return 0f
         return duration.goodMs * 100f / total
-    }
-
-    private fun getLast7Days(): List<LocalDate> {
-        val today = LocalDate.now()
-        return (0..6).map { today.minusDays(it.toLong()) }.reversed()
     }
 
     private fun updateTab(selectedIndex: Int) {

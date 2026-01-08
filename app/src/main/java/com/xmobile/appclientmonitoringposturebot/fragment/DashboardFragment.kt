@@ -517,7 +517,7 @@ class DashboardFragment : Fragment() {
 
         val now = OffsetDateTime.now()
 
-        // ---------- record mới nhất → hiện tại ----------
+        // record mới nhất → hiện tại
         val first = records.first()
 
         val firstTime = runCatching {
@@ -536,7 +536,7 @@ class DashboardFragment : Fragment() {
             }
         }
 
-        // ---------- các record tiếp theo ----------
+        // các record tiếp theo
         for (i in 0 until records.size - 1) {
 
             val current = records[i]
