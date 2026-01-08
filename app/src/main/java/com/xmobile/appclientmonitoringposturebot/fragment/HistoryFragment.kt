@@ -69,6 +69,7 @@ class HistoryFragment : Fragment() {
     private var currentDay: LocalDate = LocalDate.now()
     private var currentWeekStart: LocalDate =
         LocalDate.now().with(DayOfWeek.MONDAY)
+    private var currentDailyPercents: List<Pair<LocalDate, Float>> = emptyList()
     private var currentMonth: YearMonth = YearMonth.now()
     private var txtDuration: String = ""
 
@@ -112,10 +113,9 @@ class HistoryFragment : Fragment() {
             binding.layoutSummaryDay.visibility = View.GONE
             binding.layoutSummaryWeek.visibility = View.VISIBLE
             binding.layoutSummaryMonth.visibility = View.GONE
-            val monday =
-                LocalDate.now().with(DayOfWeek.MONDAY)
 
-            getWeekRecords(userId, monday)
+            val startDate = LocalDate.now().minusDays(6)
+            getWeekRecords(userId, startDate)
             updateScrollTime()
             binding.barChart.highlightValues(null)
             lastHighlight = null
@@ -192,11 +192,15 @@ class HistoryFragment : Fragment() {
                     // ================= WEEK → CLICK 1 NGÀY =================
                     if (currentTab == 1) {
 
-                        val dayIndex = e.x.toInt().coerceIn(0, 6)
+                        val dayIndex = e.x.toInt()
+                        Log.e("dayIndex", dayIndex.toString())
 
-                        // 👉 dùng cursor tuần hiện tại, KHÔNG dùng LocalDate.now()
                         val selectedDate =
-                            currentWeekStart.plusDays(dayIndex.toLong())
+                            currentDailyPercents
+                                .getOrNull(dayIndex)
+                                ?.first
+                                ?: return
+                        Log.e("selectedDate", selectedDate.toString())
 
                         // cập nhật cursor DAY
                         currentDay = selectedDate
@@ -283,7 +287,7 @@ class HistoryFragment : Fragment() {
 
             // ================= WEEK =================
             1 -> {
-                val thisWeekStart = today.with(DayOfWeek.MONDAY)
+                val thisWeekStart = today.minusDays(6)
 
                 when (currentWeekStart) {
                     thisWeekStart -> {
@@ -388,6 +392,7 @@ class HistoryFragment : Fragment() {
                 weekRecords =
                     StatisticPosetureRecord
                         .getRecordsByLocalDates(userId, days)
+                Log.e("getWeekRecords", weekRecords.toString())
 
                 setUpBarChart(weekRecords, false)
                 setUpWeekSummary(weekRecords)
@@ -601,8 +606,6 @@ class HistoryFragment : Fragment() {
 
         val bestDay = dailyPercents.maxByOrNull { it.second }?.first
         val worstDay = dailyPercents.minByOrNull { it.second }?.first
-        Log.e("bestDay", bestDay.toString())
-        Log.e("worstDay", worstDay.toString())
 
         binding.bestDay.text = bestDay?.let { formatDayShort(it) } ?: "--"
         binding.worstDay.text = worstDay?.let { formatDayShort(it) } ?: "--"
@@ -1070,7 +1073,10 @@ class HistoryFragment : Fragment() {
         records: List<PostureRecord>
     ) {
         val recordsByDay = groupRecordsByDate(records)
+        Log.e("recordsByDay", recordsByDay.toString())
         val dailyPercents = calculateDailyGoodPercent(recordsByDay)
+        Log.e("dailyPercents", dailyPercents.toString())
+        currentDailyPercents = dailyPercents
 
         val entries = dailyPercents.mapIndexed { index, pair ->
             BarEntry(index.toFloat(), pair.second)
@@ -1134,23 +1140,38 @@ class HistoryFragment : Fragment() {
         barChart.animateY(700, Easing.EaseInOutQuad)
     }
 
-
     private fun calculateDailyGoodPercent(
         recordsByDay: Map<LocalDate, List<PostureRecord>>
     ): List<Pair<LocalDate, Float>> {
 
-        val days = getLast7Days()
+        val days = resolveLast7DaysRange(recordsByDay)
 
         return days.map { day ->
             val records = recordsByDay[day].orEmpty()
-            val percent = if (records.isNotEmpty()) {
-                calculateGoodPercentage(
-                    calculatePostureDurationDesc(records)
-                )
-            } else {
-                0f
-            }
+
+            val percent =
+                if (records.isNotEmpty()) {
+                    calculateGoodPercentage(
+                        calculatePostureDurationDesc(records)
+                    )
+                } else {
+                    0f
+                }
+
             day to percent
+        }
+    }
+
+    private fun resolveLast7DaysRange(
+        recordsByDay: Map<LocalDate, List<PostureRecord>>
+    ): List<LocalDate> {
+
+        if (recordsByDay.isEmpty()) return emptyList()
+
+        val latestDate = recordsByDay.keys.maxOrNull()!!
+
+        return (0..6).map {
+            latestDate.minusDays(6 - it.toLong())
         }
     }
 
